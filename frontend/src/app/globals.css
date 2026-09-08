@@ -1,4 +1,7 @@
-body { margin: 0; font-family: system-ui, sans-serif; color: #202124; background: #fafafa; }
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; font-family: "Segoe UI", Arial, Helvetica, sans-serif; color: #202124; background: #fafafa; }
 main { max-width: 960px; margin: 3rem auto; padding: 0 1.5rem; }
-nav { display: flex; flex-wrap: wrap; gap: 1rem; padding: 1rem 1.5rem; border-bottom: 1px solid #ddd; }
+/* Preserve the existing admin navigation layout. */
+nav:not([class]) { display: flex; flex-wrap: wrap; gap: 1rem; padding: 1rem 1.5rem; border-bottom: 1px solid #ddd; }
 a { color: #a31540; }
+button, input, select, textarea { font: inherit; }

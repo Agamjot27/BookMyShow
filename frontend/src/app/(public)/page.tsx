@@ -1,3 +1,5 @@
-"use client";
-import { PlaceholderPage } from "@/components/placeholder-page";
-export default function Page() { return <PlaceholderPage title="Browse events" />; }
+import { HomePage } from "@/components/home/home-page";
+
+export default function Page() {
+  return <HomePage />;
+}
