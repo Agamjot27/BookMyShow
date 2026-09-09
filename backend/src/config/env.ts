@@ -25,6 +25,8 @@ export const env = {
   pgLockTimeout: positiveInt("PG_LOCK_TIMEOUT_MS", 1000),
   pgStatementTimeout: positiveInt("PG_STATEMENT_TIMEOUT_MS", 2000),
   redisConnectTimeout: positiveInt("REDIS_CONNECT_TIMEOUT_MS", 1000),
+  smtpUser: required("SMTP_USER"),
+  smtpPass: required("SMTP_PASS"),
 };
 if (env.jwtSecret.length < 32) throw new Error("JWT_SECRET must contain at least 32 characters");
 if (env.jwtSecret.startsWith("replace-with-")) throw new Error("Replace the example JWT_SECRET with a random secret");

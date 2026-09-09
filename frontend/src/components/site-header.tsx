@@ -6,6 +6,7 @@ import { useState } from "react";
 import { CalendarDots, List, MagnifyingGlass, MapPin, NavigationArrow, PlusCircle, Spinner } from "@phosphor-icons/react";
 import { UiDialog } from "./ui-dialog";
 import { useLocation } from "./location-context";
+import { useAuth } from "./auth-provider";
 import styles from "./site-header.module.css";
 
 // Popular cities to show in the picker
@@ -99,6 +100,7 @@ export function SiteHeader() {
   const close = () => setPanel(null);
 
   const { city, detecting } = useLocation();
+  const { session, logout } = useAuth();
 
   return (
     <header className={styles.header}>
@@ -124,7 +126,11 @@ export function SiteHeader() {
         </div>
         <div className={styles.actions}>
           <button className={styles.listEvent} onClick={() => setPanel("List an Event")}><PlusCircle size={18} /> List an Event</button>
-          <Link href="/login" className={styles.signIn}>Sign In</Link>
+          {session ? (
+            <button className={styles.signIn} onClick={() => logout()}>Sign Out</button>
+          ) : (
+            <Link href="/login" className={styles.signIn}>Sign In</Link>
+          )}
           <button className={styles.menuButton} aria-label="Open menu" onClick={() => setPanel("Menu")}><List size={18} /></button>
         </div>
       </div>
@@ -148,9 +154,12 @@ export function SiteHeader() {
           <CityPickerPanel onClose={close} />
         ) : panel === "Menu" ? (
           <div className={styles.menuLinks}>
+            {session && <p className={styles.menuUser}>👤 {session.user.name}</p>}
             <Link href="/movies" onClick={close}>Movies</Link>
             <Link href="/bookings" onClick={close}>My bookings</Link>
-            <Link href="/login" onClick={close}>Sign in</Link>
+            {session
+              ? <button onClick={() => { void logout(); close(); }}>Sign out</button>
+              : <Link href="/login" onClick={close}>Sign in</Link>}
           </div>
         ) : (
           <p>

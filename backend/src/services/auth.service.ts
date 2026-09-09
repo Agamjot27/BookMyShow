@@ -1,49 +1,106 @@
-import { randomBytes } from "node:crypto";
 import jwt from "jsonwebtoken";
-import { createUser, findPublicUserById, findUserByEmail, type PublicUser } from "../../db/repositories/users.repository.js";
 import { env } from "../config/env.js";
 import { ApiError } from "../lib/api-error.js";
-import { hashPassword, verifyPassword } from "../lib/password.js";
-import type { LoginInput, RegisterInput } from "../middleware/auth-validation.js";
+import { sendOtpEmail } from "../lib/mailer.js";
+import { createOtp, verifyOtp } from "../lib/otp.js";
+import {
+  findPublicUserById,
+  issueRefreshToken,
+  findRefreshToken,
+  revokeRefreshTokens,
+  upsertUserByEmail,
+  type PublicUser,
+} from "../../db/repositories/users.repository.js";
+import type { RequestOtpInput, VerifyOtpInput } from "../schemas/auth.schema.js";
 
-// Missing users still undergo a password comparison, avoiding a cheap timing shortcut.
-let dummyHash: Promise<string> | undefined;
-function session(user: PublicUser) {
+// ---------------------------------------------------------------------------
+// JWT helpers
+// ---------------------------------------------------------------------------
+
+function signAccessToken(user: PublicUser): string {
+  return jwt.sign({ role: user.role }, env.jwtSecret, {
+    algorithm:  "HS256",
+    subject:    user.user_id,
+    issuer:     env.jwtIssuer,
+    audience:   env.jwtAudience,
+    expiresIn:  env.jwtExpiresIn,
+  });
+}
+
+function session(user: PublicUser, refreshToken: string) {
   return {
-    access_token: jwt.sign({ role: user.role }, env.jwtSecret, {
-      algorithm: "HS256", subject: user.user_id, issuer: env.jwtIssuer,
-      audience: env.jwtAudience, expiresIn: env.jwtExpiresIn,
-    }),
-    expires_in: env.jwtExpiresIn,
+    access_token:  signAccessToken(user),
+    refresh_token: refreshToken,
+    expires_in:    env.jwtExpiresIn,
     user,
   };
 }
 
-export async function register(input: RegisterInput) {
-  const passwordHash = await hashPassword(input.password);
-  try {
-    return session(await createUser(input.name, input.email, passwordHash));
-  } catch (error) {
-    const dbError = error as { code?: string; constraint?: string };
-    if (dbError.code === "23505" && dbError.constraint === "users_email_lower_key") {
-      throw new ApiError(409, "EMAIL_ALREADY_EXISTS", "An account with this email already exists");
-    }
-    throw error;
-  }
+// ---------------------------------------------------------------------------
+// Step 1 — request OTP
+// ---------------------------------------------------------------------------
+
+export async function requestOtp(input: RequestOtpInput): Promise<{ message: string }> {
+  const otp = await createOtp(input.email);
+  await sendOtpEmail(input.email, otp);
+  // Always return the same message — don't reveal whether the email is registered.
+  return { message: "OTP sent. Check your inbox." };
 }
 
-export async function login(input: LoginInput) {
-  const user = await findUserByEmail(input.email);
-  if (!user) dummyHash ??= hashPassword(randomBytes(24).toString("hex"));
-  const matches = await verifyPassword(input.password, user?.password_hash ?? await dummyHash!);
-  if (!user || !matches) {
-    throw new ApiError(401, "INVALID_CREDENTIALS", "Email or password is incorrect");
+// ---------------------------------------------------------------------------
+// Step 2 — verify OTP → issue tokens
+// ---------------------------------------------------------------------------
+
+export async function verifyOtpAndLogin(input: VerifyOtpInput) {
+  const result = await verifyOtp(input.email, input.otp);
+
+  if (!result.ok) {
+    const messages = {
+      expired: "OTP has expired. Request a new one.",
+      invalid: "Incorrect OTP. Check your email and try again.",
+      locked:  "Too many incorrect attempts. Request a new OTP.",
+    };
+    throw new ApiError(401, "OTP_INVALID", messages[result.reason]);
   }
-  const { user_id, name, email, role } = user;
-  return session({ user_id, name, email, role });
+
+  const { user, isNew } = await upsertUserByEmail(input.email, input.name);
+
+  // New user must supply a name — if they didn't, their display name defaults
+  // to the email prefix (handled in upsertUserByEmail). That's fine for now.
+
+  const refreshToken = await issueRefreshToken(user.user_id);
+  return { ...session(user, refreshToken), is_new_user: isNew };
 }
 
-export async function me(userId: string) {
+// ---------------------------------------------------------------------------
+// Refresh access token
+// ---------------------------------------------------------------------------
+
+export async function refresh(token: string) {
+  const record = await findRefreshToken(token);
+  if (!record) throw new ApiError(401, "REFRESH_TOKEN_INVALID", "Invalid or expired refresh token");
+
+  const user = await findPublicUserById(record.user_id);
+  if (!user) throw new ApiError(401, "UNAUTHORIZED", "This account is no longer available");
+
+  // Rotate: issue new refresh token, revoke old one (already replaced by issueRefreshToken)
+  const newRefreshToken = await issueRefreshToken(user.user_id);
+  return session(user, newRefreshToken);
+}
+
+// ---------------------------------------------------------------------------
+// Logout
+// ---------------------------------------------------------------------------
+
+export async function logout(userId: string): Promise<void> {
+  await revokeRefreshTokens(userId);
+}
+
+// ---------------------------------------------------------------------------
+// Me
+// ---------------------------------------------------------------------------
+
+export async function me(userId: string): Promise<PublicUser> {
   const user = await findPublicUserById(userId);
   if (!user) throw new ApiError(401, "UNAUTHORIZED", "This account is no longer available");
   return user;

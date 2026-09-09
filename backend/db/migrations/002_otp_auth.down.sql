@@ -1,0 +1,4 @@
+BEGIN;
+DROP TABLE IF EXISTS refresh_tokens;
+ALTER TABLE users ALTER COLUMN password_hash SET NOT NULL;
+COMMIT;

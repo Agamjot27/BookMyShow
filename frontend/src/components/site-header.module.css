@@ -23,7 +23,8 @@
 .ticketMark { display: inline-block; background: #c92539; color: #fff; margin-right: 3px; padding: 0 2px; font-style: italic; transform: rotate(12deg); }
 .header button:hover, .primaryNav button:hover { color: #c7254b; }
 .menuLinks { display: grid; gap: 12px; }
-.menuLinks a { color: #c7254b; }
+.menuLinks a, .menuLinks button { color: #c7254b; background: transparent; border: 0; font-size: inherit; cursor: pointer; text-align: left; padding: 0; }
+.menuUser { margin: 0 0 4px; font-size: 14px; font-weight: 700; color: #111; }
 .skipLink { position: fixed; top: 8px; left: 16px; transform: translateY(-160%); z-index: 10; padding: 10px 20px; background: #d92e55; color: #fff; border-radius: 8px; }
 .skipLink:focus { transform: none; }
 .header button:focus-visible, .header a:focus-visible { outline: 2px solid #d92e55; outline-offset: 4px; }
