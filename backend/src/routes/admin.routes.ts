@@ -2,7 +2,6 @@ import { Router } from "express";
 import * as venuesCtrl  from "../controllers/venues.controller.js";
 import * as screensCtrl from "../controllers/screens.controller.js";
 import * as events from "../controllers/events.controller.js";
-import { notImplemented } from "../controllers/not-implemented.js";
 import { handler as shows } from "../controllers/shows.controller.js";
 import { handler as bookings } from "../controllers/bookings.controller.js";
 import { handler as analytics } from "../controllers/analytics.controller.js";
@@ -30,9 +29,9 @@ adminRouter.put("/screens/:id/layout",  screensCtrl.putLayout);
 // ── Events ──────────────────────────────────────────────────────────────────
 adminRouter.post("/events",       events.create);
 adminRouter.get("/events",        events.listAdmin);
-adminRouter.get("/events/:id",    notImplemented);
-adminRouter.patch("/events/:id",  notImplemented);
-adminRouter.delete("/events/:id", notImplemented);
+adminRouter.get("/events/:id",    events.getById);
+adminRouter.patch("/events/:id",  events.update);
+adminRouter.delete("/events/:id", events.remove);
 
 // ── Shows ────────────────────────────────────────────────────────────────────
 adminRouter.get("/shows",          shows);

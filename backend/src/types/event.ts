@@ -10,6 +10,7 @@ export type Event = {
   poster_url: string | null;
 };
 export type CreateEventInput = Omit<Event, "event_id">;
+export type UpdateEventInput = Partial<Omit<Event, "event_id">>;
 export type EventListOptions = {
   page: number;
   page_size: number;

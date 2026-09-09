@@ -95,7 +95,51 @@ export const screensApi = {
     adminFetch<undefined>(`/api/admin/screens/${id}`, token, { method: "DELETE" }),
 };
 
-// ── Seat layout ────────────────────────────────────────────────────────────
+// ── Events ─────────────────────────────────────────────────────────────────
+
+export type EventType = "movie" | "standup" | "concert";
+export const EVENT_TYPES: EventType[] = ["movie", "standup", "concert"];
+
+export interface AdminEvent {
+  event_id: string;
+  type: EventType;
+  title: string;
+  duration: number;
+  description: string;
+  poster_url: string | null;
+}
+
+export const eventsApi = {
+  list: (token: string, page = 1, page_size = 50) =>
+    adminFetch<{ items: AdminEvent[]; total: number; page: number; page_size: number }>(
+      `/api/admin/events?page=${page}&page_size=${page_size}`, token,
+    ),
+
+  get: (id: string, token: string) =>
+    adminFetch<AdminEvent>(`/api/admin/events/${id}`, token),
+
+  create: (
+    body: { type: EventType; title: string; duration: number; description: string; poster_url: string | null },
+    token: string,
+  ) =>
+    adminFetch<AdminEvent>("/api/admin/events", token, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  update: (
+    id: string,
+    body: Partial<{ type: EventType; title: string; duration: number; description: string; poster_url: string | null }>,
+    token: string,
+  ) =>
+    adminFetch<AdminEvent>(`/api/admin/events/${id}`, token, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+
+  delete: (id: string, token: string) =>
+    adminFetch<undefined>(`/api/admin/events/${id}`, token, { method: "DELETE" }),
+};
 
 export interface SeatInput {
   row: string;

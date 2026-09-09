@@ -28,6 +28,17 @@ export const createEventSchema = z.strictObject({
   type, title, duration, description, poster_url: posterUrl.nullable().default(null),
 });
 
+export const updateEventSchema = z.strictObject({
+  type:        type.optional(),
+  title:       title.optional(),
+  duration:    duration.optional(),
+  description: description.optional(),
+  poster_url:  posterUrl.nullable().optional(),
+}).refine(
+  (v) => Object.values(v).some((x) => x !== undefined),
+  { message: "At least one field must be provided" },
+);
+
 function positiveQueryInteger(fallback: number, maximum: number) {
   return z.custom<string>(
     value => typeof value === "string" && /^[1-9]\d*$/.test(value) &&
