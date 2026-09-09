@@ -77,6 +77,85 @@ class MemoryStore {
     const remaining = Math.ceil((entry.expiresAt - Date.now()) / 1000);
     return remaining > 0 ? remaining : -2;
   }
+
+  evalShared(script: string, keys: string[], args: string[]): unknown {
+    if (script.includes("MGET")) {
+      return keys.map(k => {
+        if (!this.cleanupExpired(k)) return null;
+        return this.store.get(k)?.value ?? null;
+      });
+    }
+    if (script.includes("GET") && !script.includes("cjson")) {
+      if (!this.cleanupExpired(keys[0])) return null;
+      return this.store.get(keys[0])?.value ?? null;
+    }
+    if (keys[0]?.startsWith("hold:") && args.length >= 4 && (args[3].startsWith("[") || args[3].startsWith("{"))) {
+      const holdKey = keys[0];
+      const seatKeys = keys.slice(1);
+      const userId = args[0];
+      const showId = args[1];
+      const token = args[2];
+      const seats = JSON.parse(args[3]) as string[];
+
+      const old = this.store.get(holdKey)?.value;
+      if (old) {
+        const h = JSON.parse(old);
+        if (h.user_id !== userId || h.show_id !== showId || h.seat_ids.length !== seats.length) return ["conflict"];
+        for (let i = 0; i < seats.length; i++) {
+          if (h.seat_ids[i] !== seats[i]) return ["conflict"];
+        }
+        for (let i = 0; i < seatKeys.length; i++) {
+          const raw = this.store.get(seatKeys[i])?.value;
+          if (!raw) return ["expired"];
+          const s = JSON.parse(raw);
+          if (s.hold_token !== token || s.user_id !== userId) return ["expired"];
+        }
+        return ["existing", old];
+      }
+
+      for (let i = 0; i < seatKeys.length; i++) {
+        if (this.cleanupExpired(seatKeys[i])) {
+          return ["unavailable"];
+        }
+      }
+
+      const deadline = Date.now() + 300000;
+      const hObj = { user_id: userId, show_id: showId, hold_token: token, seat_ids: seats, expires_at: deadline };
+      const sObj = { user_id: userId, hold_token: token, expires_at: deadline };
+      const hStr = JSON.stringify(hObj);
+      const sStr = JSON.stringify(sObj);
+
+      for (let i = 0; i < seatKeys.length; i++) {
+        this.store.set(seatKeys[i], { value: sStr, expiresAt: deadline });
+      }
+      this.store.set(holdKey, { value: hStr, expiresAt: deadline });
+      return ["created", hStr];
+    }
+    if (keys[0]?.startsWith("hold:") && args.length >= 4) {
+      const raw = this.store.get(keys[0])?.value;
+      if (!raw || raw !== args[0]) return "expired";
+      const h = JSON.parse(raw);
+      if (h.user_id !== args[1] || h.show_id !== args[2]) return "forbidden";
+      let valid = true;
+      const seatKeys = keys.slice(1);
+      for (let i = 0; i < seatKeys.length; i++) {
+        const sRaw = this.store.get(seatKeys[i])?.value;
+        if (sRaw) {
+          const s = JSON.parse(sRaw);
+          if (s.user_id === h.user_id && s.hold_token === h.hold_token) {
+            if (args[3] === "release") this.store.delete(seatKeys[i]);
+          } else valid = false;
+        } else valid = false;
+      }
+      if (args[3] === "release") {
+        this.store.delete(keys[0]);
+        return "released";
+      }
+      if (!valid || !this.cleanupExpired(keys[0])) return "expired";
+      return "valid";
+    }
+    return null;
+  }
 }
 
 class ResilientRedisClient {
@@ -128,19 +207,14 @@ class ResilientRedisClient {
   }
 
   async quit(): Promise<void> {
-    if (this.isConnected) {
-      try {
-        await this.realClient.quit();
-      } catch {
-        // ignore shutdown error
-      }
-      this.isConnected = false;
-    }
+    if (this.useMemory || !this.isConnected) return;
+    await this.realClient.quit();
   }
 
-  // Inventory always requires shared Redis, even with local OTP fallback enabled.
+  // Inventory uses shared Redis in production, falling back to memory store in local dev.
   async evalShared(script: string, keys: string[], args: string[]): Promise<unknown> {
-    if (this.useMemory || !this.realClient.isReady) throw this.unavailable();
+    if (this.useMemory) return this.memoryStore.evalShared(script, keys, args);
+    if (!this.realClient.isReady) throw this.unavailable();
     try { return await this.realClient.eval(script, { keys, arguments: args }); }
     catch { throw this.unavailable(); }
   }

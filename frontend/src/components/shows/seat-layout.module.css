@@ -197,9 +197,48 @@
 /* Status colours */
 .seat_available  { border-color: #aaa; background: #fff; color: #555; }
 .seat_available:hover { border-color: #2dc492; background: #eafaf4; color: #2dc492; }
-.seat_sold       { border-color: #ddd; background: #f0f0f0; color: #ccc; }
+.seat_sold,
+.seat_booked     { border-color: #ddd; background: #f0f0f0; color: #ccc; }
+.seat_held_by_other { border-color: #fca5a5; background: #fef2f2; color: #ef4444; }
+.seat_held_by_me    { border-color: #93c5fd; background: #eff6ff; color: #2563eb; }
 .seat_bestseller { border-color: #f5a623; background: #fff8ec; color: #c8811a; }
 .seat_selected   { border-color: #2dc492; background: #2dc492; color: #fff; }
+
+.errorBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  max-width: 820px;
+  width: calc(100% - 48px);
+  margin: 16px auto 0;
+  padding: 12px 16px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #b91c1c;
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 10;
+}
+.errorCloseBtn {
+  background: none;
+  border: 0;
+  color: #b91c1c;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.errorCloseBtn:hover {
+  background: #fee2e2;
+}
+
+.payBtn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
 
 /* ── Screen ────────────────────────────────────────────────────────────────── */
 .screenWrapper {

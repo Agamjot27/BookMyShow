@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Star,
   ThumbsUp,
@@ -20,18 +20,42 @@ import {
   sampleMovies,
   defaultTheatres,
   type Movie,
+  type Theatre,
   type Showtime,
 } from "./movies-data";
 import styles from "./movie-detail.module.css";
 
+const SLUG_TO_EVENT_ID: Record<string, string> = {
+  "spider-man-brand-new-day": "11111111-0001-0000-0000-000000000001",
+  "baaghi-4": "11111111-0001-0000-0000-000000000002",
+  "demon-slayer": "11111111-0001-0000-0000-000000000003",
+  "bengal-files": "11111111-0001-0000-0000-000000000004",
+  "fantastic-4": "11111111-0001-0000-0000-000000000005",
+  "vash-level-2": "11111111-0001-0000-0000-000000000006",
+};
+
+interface ApiShowItem {
+  show_id: string;
+  event_id: string;
+  screen_id: string;
+  start_time: string;
+  end_time: string;
+  base_price: string;
+  event_title: string;
+  screen_name: string;
+  venue: {
+    venue_id: string;
+    name: string;
+    address: string;
+  };
+}
+
 const dateSchedule = [
-  { day: "WED", date: "09", month: "SEP" },
   { day: "THU", date: "10", month: "SEP" },
   { day: "FRI", date: "11", month: "SEP" },
   { day: "SAT", date: "12", month: "SEP" },
   { day: "SUN", date: "13", month: "SEP" },
   { day: "MON", date: "14", month: "SEP" },
-  { day: "TUE", date: "15", month: "SEP" },
 ];
 
 export function MovieDetailPage({ id, location }: { id: string; location: string }) {
@@ -44,17 +68,90 @@ export function MovieDetailPage({ id, location }: { id: string; location: string
   const [favoriteTheatres, setFavoriteTheatres] = useState<string[]>([]);
   const [shared, setShared] = useState(false);
 
-  const theatres = movie.theatres || defaultTheatres;
+  // Resolve event ID and fetch real shows
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const resolvedEventId = isUUID.test(id)
+    ? id
+    : (SLUG_TO_EVENT_ID[id] || "11111111-0001-0000-0000-000000000001");
+
+  const [backendShows, setBackendShows] = useState<ApiShowItem[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    async function loadShows() {
+      try {
+        const res = await fetch(`/api/events/${resolvedEventId}/shows?page_size=100`, { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          if (active && Array.isArray(data?.items)) {
+            setBackendShows(data.items);
+          }
+        }
+      } catch {
+        // Fallback remains active if offline
+      }
+    }
+    loadShows();
+    return () => { active = false; };
+  }, [resolvedEventId]);
+
+  // Derive theatres from real backend shows if available
+  const theatres: Theatre[] = useMemo(() => {
+    if (!backendShows || backendShows.length === 0) {
+      return movie.theatres || defaultTheatres;
+    }
+
+    const selectedDateObj = dateSchedule[selectedDateIdx];
+
+    const venueMap = new Map<string, { venue: ApiShowItem["venue"]; shows: ApiShowItem[] }>();
+    backendShows.forEach((s) => {
+      const list = venueMap.get(s.venue.venue_id) || { venue: s.venue, shows: [] };
+      list.shows.push(s);
+      venueMap.set(s.venue.venue_id, list);
+    });
+
+    const result: Theatre[] = [];
+    venueMap.forEach(({ venue, shows }) => {
+      const matching = shows.filter((s) => {
+        const d = new Date(s.start_time);
+        return String(d.getDate()) === selectedDateObj.date;
+      });
+
+      const displayShows = matching.length > 0 ? matching : shows;
+
+      result.push({
+        id: venue.venue_id,
+        name: venue.name,
+        location: venue.address,
+        cancellationAllowed: true,
+        facilities: ["M-Ticket", "Food & Beverage", "Recliner"],
+        showtimes: displayShows.map((s) => ({
+          id: s.show_id, // REAL show UUID from database
+          time: new Date(s.start_time).toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          }),
+          label: s.screen_name,
+          status: "available",
+          format: s.screen_name.includes("3D") ? "3D" : "2D",
+        })),
+      });
+    });
+
+    return result.length > 0 ? result : (movie.theatres || defaultTheatres);
+  }, [backendShows, movie.theatres, selectedDateIdx]);
+
   const recommendations = sampleMovies.filter((m) => m.id !== movie.id);
 
   const selectedDate = dateSchedule[selectedDateIdx];
   const formattedDate = `${selectedDate.day}, ${selectedDate.date} ${selectedDate.month} 2026`;
 
   // Navigate to seat layout page when a showtime is clicked
-  const handleShowtimeClick = (theatre: typeof theatres[number], showtime: Showtime) => {
+  const handleShowtimeClick = (theatre: Theatre, showtime: Showtime) => {
     // Pass all showtimes for this theatre so the time-switcher works on the seat page
     const times = theatre.showtimes
-      .map((s) => `${s.time}|${s.label ?? ""}`)
+      .map((s) => `${s.time}|${s.label ?? ""}|${s.id}`)
       .join(",");
 
     const params = new URLSearchParams({
@@ -68,8 +165,8 @@ export function MovieDetailPage({ id, location }: { id: string; location: string
       movieId:  movie.id,
     });
 
-    // Use theatre.id as the "show id" for the URL (would be a real show UUID when backend is connected)
-    router.push(`/shows/${theatre.id}/seats?${params.toString()}`);
+    // Use REAL show UUID for the seat selection URL!
+    router.push(`/shows/${showtime.id}/seats?${params.toString()}`);
   };
 
   const handleBookTicketsClick = () => {

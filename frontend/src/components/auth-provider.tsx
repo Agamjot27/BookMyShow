@@ -52,93 +52,120 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const openAuthModal = useCallback(() => setIsAuthModalOpen(true), []);
   const closeAuthModal = useCallback(() => setIsAuthModalOpen(false), []);
 
-  // ── Persist session to localStorage ──────────────────────────────────────
-  const persistSession = useCallback((s: Session) => {
+  const mounted = useRef(false);
+
+  const readSession = useCallback((): Session | null => {
     try {
-      localStorage.setItem(KEY_ACCESS,  s.accessToken);
-      localStorage.setItem(KEY_REFRESH, s.refreshToken);
-      localStorage.setItem(KEY_EXPIRES, String(s.expiresAt));
-      localStorage.setItem(KEY_USER,    JSON.stringify(s.user));
-    } catch { /* storage blocked */ }
+      const accessToken = localStorage.getItem(KEY_ACCESS);
+      const refreshToken = localStorage.getItem(KEY_REFRESH);
+      const expiresAt = Number(localStorage.getItem(KEY_EXPIRES));
+      const user = JSON.parse(localStorage.getItem(KEY_USER) ?? "null") as User | null;
+      return accessToken && refreshToken && Number.isFinite(expiresAt) && user
+        ? { accessToken, refreshToken, expiresAt, user } : null;
+    } catch { return null; }
+  }, []);
+
+  const persistSession = useCallback((s: Session) => {
+    // Refresh token is the final write and the cross-tab change notification.
+    localStorage.setItem(KEY_ACCESS, s.accessToken);
+    localStorage.setItem(KEY_EXPIRES, String(s.expiresAt));
+    localStorage.setItem(KEY_USER, JSON.stringify(s.user));
+    localStorage.setItem(KEY_REFRESH, s.refreshToken);
   }, []);
 
   const clearStorage = useCallback(() => {
     try {
-      [KEY_ACCESS, KEY_REFRESH, KEY_EXPIRES, KEY_USER].forEach((k) => localStorage.removeItem(k));
+      [KEY_ACCESS, KEY_EXPIRES, KEY_USER, KEY_REFRESH].forEach(k => localStorage.removeItem(k));
     } catch { /* storage blocked */ }
   }, []);
 
-  // ── Silent token refresh ──────────────────────────────────────────────────
-  const doRefresh = useCallback(async (refreshToken: string): Promise<Session | null> => {
+  type RefreshResult = { session: Session | null; retry: boolean };
+  const doRefresh = useCallback(async (expected: Session): Promise<RefreshResult> => {
     try {
-      const res = await fetch("/api/auth/refresh", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ refresh_token: refreshToken }),
-      });
-      if (!res.ok) return null;
-      const data = await res.json() as {
-        access_token: string; refresh_token: string; expires_in: number; user: User;
-      };
-      const next: Session = {
-        accessToken:  data.access_token,
-        refreshToken: data.refresh_token,
-        expiresAt:    Date.now() + data.expires_in * 1000,
-        user:         data.user,
-      };
-      persistSession(next);
-      return next;
-    } catch { return null; }
-  }, [persistSession]);
-
-  // ── Schedule a refresh 60s before expiry ─────────────────────────────────
-  const scheduleRefresh = useCallback((s: Session) => {
-    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-    const delay = s.expiresAt - Date.now() - 60_000;
-    if (delay <= 0) return;
-    refreshTimerRef.current = setTimeout(async () => {
-      const next = await doRefresh(s.refreshToken);
-      if (next) { setSession(next); scheduleRefresh(next); }
-      else { setSession(null); clearStorage(); }
-    }, delay);
-  }, [doRefresh, clearStorage]);
-
-  // ── Restore session on mount ──────────────────────────────────────────────
-  useEffect(() => {
-    (async () => {
-      try {
-        const accessToken  = localStorage.getItem(KEY_ACCESS);
-        const refreshToken = localStorage.getItem(KEY_REFRESH);
-        const expiresAt    = Number(localStorage.getItem(KEY_EXPIRES) ?? 0);
-        const userRaw      = localStorage.getItem(KEY_USER);
-
-        if (!accessToken || !refreshToken || !userRaw) { setLoading(false); return; }
-
-        const user: User = JSON.parse(userRaw);
-
-        // If access token is still valid (>60s left), restore immediately
-        if (expiresAt - Date.now() > 60_000) {
-          const s: Session = { accessToken, refreshToken, expiresAt, user };
-          setSession(s);
-          scheduleRefresh(s);
-        } else {
-          // Expired — try to refresh silently
-          const next = await doRefresh(refreshToken);
-          if (next) { setSession(next); scheduleRefresh(next); }
-          else clearStorage();
+      // Web Locks serialize same-origin tabs. Without them, defer rather than
+      // risk concurrently consuming a single-use refresh token.
+      if (!navigator.locks) return { session: expected, retry: true };
+      return await navigator.locks.request("bms-session-refresh", async () => {
+        const current = readSession();
+        if (!current || current.refreshToken !== expected.refreshToken) {
+          return { session: current, retry: false };
         }
-      } catch { clearStorage(); }
-      finally { setLoading(false); }
-    })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+        const res = await fetch("/api/auth/refresh", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh_token: current.refreshToken }),
+          signal: AbortSignal.timeout(15_000),
+        });
+        const data = await res.json();
+        // A login/logout in another tab may have happened during the request.
+        const latest = readSession();
+        if (!latest || latest.refreshToken !== current.refreshToken) {
+          return { session: latest, retry: false };
+        }
+        if (!res.ok) {
+          if (res.status === 401 && data.error?.code === "REFRESH_TOKEN_INVALID") {
+            clearStorage();
+            return { session: null, retry: false };
+          }
+          return { session: current, retry: true };
+        }
+        if (typeof data.access_token !== "string" || typeof data.refresh_token !== "string" ||
+            typeof data.expires_in !== "number" || data.expires_in <= 0 || !data.user) {
+          return { session: current, retry: true };
+        }
+        const next: Session = {
+          accessToken: data.access_token, refreshToken: data.refresh_token,
+          expiresAt: Date.now() + data.expires_in * 1000, user: data.user,
+        };
+        persistSession(next);
+        return { session: next, retry: false };
+      });
+    } catch {
+      // Network, timeout, malformed response and storage errors are not logout.
+      return { session: readSession(), retry: true };
+    }
+  }, [readSession, persistSession, clearStorage]);
 
-  // ── Public API ────────────────────────────────────────────────────────────
-  const login = useCallback((
-    accessToken: string, refreshToken: string, expiresIn: number, user: User,
-  ) => {
+  const scheduleRefresh = useCallback((s: Session, retry = false) => {
+    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    const delay = retry ? 30_000 : Math.max(0, s.expiresAt - Date.now() - 60_000);
+    refreshTimerRef.current = setTimeout(async () => {
+      const result = await doRefresh(s);
+      if (!mounted.current) return;
+      // Re-read before updating UI so stale completions cannot replace a newer login.
+      const latest = readSession();
+      const next = latest?.refreshToken === result.session?.refreshToken ? result.session : latest;
+      setSession(next && next.expiresAt > Date.now() ? next : null);
+      if (next) scheduleRefresh(next, result.retry);
+    }, delay);
+  }, [doRefresh, readSession]);
+
+  useEffect(() => {
+    mounted.current = true;
+    const restore = () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+      const stored = readSession();
+      setSession(stored && stored.expiresAt > Date.now() ? stored : null);
+      if (stored) scheduleRefresh(stored);
+      setLoading(false);
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.storageArea === localStorage && (event.key === KEY_REFRESH || event.key === null)) restore();
+    };
+    restore();
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("online", restore);
+    return () => {
+      mounted.current = false;
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("online", restore);
+    };
+  }, [readSession, scheduleRefresh]);
+
+  const login = useCallback((accessToken: string, refreshToken: string, expiresIn: number, user: User) => {
     const s: Session = { accessToken, refreshToken, expiresAt: Date.now() + expiresIn * 1000, user };
-    persistSession(s);
+    try { persistSession(s); } catch { /* storage blocked */ }
     setSession(s);
     scheduleRefresh(s);
   }, [persistSession, scheduleRefresh]);
@@ -151,8 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (token) {
       try {
         await fetch("/api/auth/logout", {
-          method:  "POST",
-          headers: { Authorization: `Bearer ${token}` },
+          method: "POST", headers: { Authorization: `Bearer ${token}` },
         });
       } catch { /* best-effort */ }
     }

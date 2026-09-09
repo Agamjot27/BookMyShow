@@ -1,7 +1,7 @@
 "use client";
 
-import { useSearchParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   QrCode,
@@ -15,6 +15,8 @@ import {
   DeviceMobile,
   PiggyBank,
 } from "@phosphor-icons/react";
+import { useAuth } from "@/components/auth-provider";
+import { CHECKOUT_KEY, RECEIPT_KEY, readCheckoutSession, type CheckoutSession } from "./booking-session";
 import styles from "./checkout.module.css";
 
 // ---------------------------------------------------------------------------
@@ -40,7 +42,7 @@ interface PaymentOption {
 // Helpers
 // ---------------------------------------------------------------------------
 
-const CONVENIENCE_RATE = 0.212; // ~21.2% convenience fee (matches BMS)
+
 
 function formatINR(amount: number) {
   return `₹${amount.toFixed(2)}`;
@@ -248,21 +250,6 @@ function OrderSummary({
           <span>Ticket(s) price</span>
           <span>{formatINR(ticketPrice)}</span>
         </div>
-        <div className={styles.priceRow}>
-          <span>Convenience fees <span className={styles.feesCaret}>∨</span></span>
-          <span>{formatINR(convenienceFee)}</span>
-        </div>
-        <div className={styles.priceRow}>
-          <span>
-            Give to Underprivileged Musicians
-            <br />
-            <span className={styles.charityNote}>(₹1 per ticket) <button type="button" className={styles.tncLink}>VIEW T&amp;C</button></span>
-          </span>
-          <div className={styles.charityRight}>
-            <span className={styles.charityZero}>₹0.00</span>
-            <button type="button" className={styles.charityAdd}>Add ₹{seats.length}.00</button>
-          </div>
-        </div>
         <div className={`${styles.priceRow} ${styles.priceRowTotal}`}>
           <span>Order total</span>
           <span>{formatINR(total)}</span>
@@ -326,47 +313,150 @@ const PAYMENT_OPTIONS: PaymentOption[] = [
   { id: "points",     label: "Redeem Points",       icon: <PiggyBank size={20} /> },
 ];
 
+type ShowDetails = { event_title: string; screen_name: string; start_time: string; base_price: string; venue: { name: string } };
+type Ticket = { booking_id: string; status: "confirmed"; total_amount: string; start_time: string;
+  event: { title: string }; venue: { name: string }; screen: { name: string }; seats: { seat_id: string; label: string; price: string }[] };
+function failureMessage(code?: string): string {
+  const messages: Record<string, string> = {
+    HOLD_EXPIRED: "Your hold expired. Select seats again.", HOLD_NOT_FOUND: "This hold is unavailable or belongs to another account.",
+    SHOW_STARTED: "This show has already started.", SEATS_UNAVAILABLE: "One or more seats are no longer available. Select seats again.",
+    HOLD_MISMATCH: "The seats do not match your hold.", IDEMPOTENCY_CONFLICT: "This checkout attempt conflicts with an earlier request. Do not submit it with a new key.",
+    HOLD_TOKEN_CONFLICT: "This hold has already been used with different booking details.",
+    PAYMENT_FAILED: "Simulated payment failed. No booking was created.", UNAUTHORIZED: "Sign in again, then retry this same checkout.",
+  };
+  return messages[code ?? ""] ?? "Temporary confirmation failure. Your booking attempt is saved; retry to recover the result.";
+}
+
 export function CheckoutPage() {
   const router = useRouter();
-  const params = useSearchParams();
-
-  // Query params passed from seat layout page
-  const movie      = params.get("movie")   ?? "Event";
-  const rawSeats   = params.get("seats")   ?? "";
-  const rawTotal   = parseFloat(params.get("total") ?? "0");
-  const theatre    = params.get("theatre") ?? "";
-  const screen     = params.get("screen")  ?? "";
-  const dateTime   = params.get("date")    ?? "";
-  const showTime   = params.get("time")    ?? "";
-  const format     = params.get("format")  ?? "2D";
-  const tier       = params.get("tier")    ?? "GOLD";
-  const rawType    = params.get("type")    ?? "movie";
-
-  const eventType  = resolveEventType(rawType);
-  const seats      = rawSeats ? rawSeats.split(",") : [];
-  const ticketPrice    = rawTotal;
-  const convenienceFee = parseFloat((ticketPrice * CONVENIENCE_RATE).toFixed(2));
-  const orderTotal     = parseFloat((ticketPrice + convenienceFee).toFixed(2));
-
-  const fullDateTime = [dateTime, showTime].filter(Boolean).join(" | ");
-
+  const { session, openAuthModal } = useAuth();
+  const [checkout, setCheckout] = useState<CheckoutSession | null>(null);
+  const [ticket, setTicket] = useState<Ticket | null>(null);
+  const [show, setShow] = useState<ShowDetails | null>(null);
+  const [seatLabels, setSeatLabels] = useState<string[]>([]);
+  const [ready, setReady] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const inFlight = useRef(false);
+  const [error, setError] = useState("");
+  const [blocked, setBlocked] = useState(false);
+  const [reload, setReload] = useState(0);
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>("upi");
-  const [contactEmail, setContactEmail] = useState("guest@example.com");
-  const [contactPhone, setContactPhone] = useState("+91-0000000000");
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
   const [editingContact, setEditingContact] = useState(false);
-  const [paid, setPaid] = useState(false);
 
-  const handlePay = () => {
-    // Simulate payment — in production this would call the bookings API
-    setPaid(true);
+  useEffect(() => {
+    let active = true;
+    setReady(false);
+    setBlocked(false);
+    setError("");
+    (async () => {
+      try {
+        const current = readCheckoutSession();
+        if (!current) {
+          const receipt = sessionStorage.getItem(RECEIPT_KEY);
+          if (receipt && session) {
+            const saved = JSON.parse(receipt) as { user_id: string; ticket: Ticket };
+            if (saved.user_id === session.user.user_id) setTicket(saved.ticket);
+          }
+          if (active) setError("No active seat hold. Select seats and create a hold before checkout.");
+          return;
+        }
+        if (active) setCheckout(current);
+        if (!session) { if (active) setError("Sign in to continue checkout."); return; }
+        const headers = { Authorization: `Bearer ${session.accessToken}` };
+        const showRes = await fetch(`/api/shows/${current.show_id}`, { cache: "no-store" });
+        if (!showRes.ok) throw new Error("Could not load show details. Please retry.");
+        const details = await showRes.json() as ShowDetails;
+        if (active) setShow(details);
+        // After an ambiguous confirmation, Redis may be gone because the booking
+        // committed. Never block a replay on a hold/availability lookup.
+        if (!current.attempted) {
+          const holdRes = await fetch(`/api/shows/${current.show_id}/holds/${current.hold_token}`, { headers, cache: "no-store" });
+          const hold = await holdRes.json();
+          if (!holdRes.ok) {
+            if (active) setBlocked([404, 409].includes(holdRes.status));
+            throw new Error(failureMessage(hold.error?.code));
+          }
+          if (JSON.stringify([...hold.seat_ids].sort()) !== JSON.stringify([...current.seat_ids].sort())) {
+            if (active) setBlocked(true);
+            throw new Error("Your selected seats do not match this hold. Select seats again.");
+          }
+        }
+        const mapRes = await fetch(`/api/shows/${current.show_id}/seats`, { headers, cache: "no-store" });
+        if (mapRes.ok) {
+          const map = await mapRes.json() as { seats: { seat_id: string; label: string }[] };
+          if (active) setSeatLabels(map.seats.filter(seat => current.seat_ids.includes(seat.seat_id)).map(seat => seat.label));
+        }
+        if (active) setReady(true);
+      } catch (err) {
+        if (active) setError(err instanceof Error ? err.message : "Unable to load checkout. Please retry.");
+      }
+    })();
+    return () => { active = false; };
+  }, [session, reload]);
+
+  const handlePay = async () => {
+    if (!checkout || !session || inFlight.current) return;
+    inFlight.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      // Persist before sending. Timeout/reload/retry always uses this same body/key.
+      const attempt = { ...checkout, attempted: true };
+      sessionStorage.setItem(CHECKOUT_KEY, JSON.stringify(attempt));
+      setCheckout(attempt);
+      const res = await fetch("/api/bookings/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.accessToken}`,
+          "Idempotency-Key": attempt.idempotency_key },
+        body: JSON.stringify({ show_id: attempt.show_id, hold_token: attempt.hold_token,
+          seat_ids: attempt.seat_ids, payment_result: "success" }),
+        signal: AbortSignal.timeout(15_000),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setBlocked(["HOLD_EXPIRED", "HOLD_NOT_FOUND", "SHOW_STARTED", "SEATS_UNAVAILABLE", "HOLD_MISMATCH", "IDEMPOTENCY_CONFLICT", "HOLD_TOKEN_CONFLICT"].includes(data.error?.code));
+        throw new Error(failureMessage(data.error?.code));
+      }
+      if (data.status !== "confirmed" || typeof data.booking_id !== "string" ||
+          typeof data.total_amount !== "string" || !Array.isArray(data.seats) || !data.event || !data.venue || !data.screen) {
+        throw new Error("The booking response was incomplete. Retry to recover your booking.");
+      }
+      setTicket(data as Ticket);
+      try {
+        sessionStorage.setItem(RECEIPT_KEY, JSON.stringify({ user_id: session.user.user_id, ticket: data }));
+        // Don't delete a replacement checkout created while this request was running.
+        if (readCheckoutSession()?.idempotency_key === attempt.idempotency_key) sessionStorage.removeItem(CHECKOUT_KEY);
+      } catch { /* Keep the attempt if receipt persistence fails; replay remains safe. */ }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Confirmation could not be completed. Retry with the same booking attempt.");
+    } finally {
+      inFlight.current = false;
+      setBusy(false);
+    }
   };
 
-  if (paid) {
+  const movie = ticket?.event.title ?? show?.event_title ?? "Checkout";
+  const theatre = ticket?.venue.name ?? show?.venue.name ?? "";
+  const screen = ticket?.screen.name ?? show?.screen_name ?? "";
+  const fullDateTime = (ticket?.start_time ?? show?.start_time) ? new Date((ticket?.start_time ?? show?.start_time)!).toLocaleString() : "";
+  const seats = ticket ? ticket.seats.map(seat => seat.label) : seatLabels;
+  const eventType: EventType = "other";
+  const format = "";
+  const tier = "Seats";
+  // Preview uses the database show price only; the confirmed total is authoritative.
+  const ticketPrice = ticket ? Number(ticket.total_amount) : Number(show?.base_price ?? 0) * (checkout?.seat_ids.length ?? 0);
+  const convenienceFee = 0;
+  const orderTotal = ticketPrice;
+
+  if (ticket) {
     return (
       <div className={styles.successPage}>
         <CheckCircle size={72} weight="fill" className={styles.successIcon} />
         <h1 className={styles.successTitle}>Booking Confirmed!</h1>
         <p className={styles.successSub}>{movie}</p>
+        <p className={styles.successMeta}>Booking reference: {ticket.booking_id}</p>
         <p className={styles.successMeta}>{fullDateTime}</p>
         {seats.length > 0 && <p className={styles.successMeta}>Seats: {seats.join(", ")}</p>}
         <p className={styles.successMeta}>{theatre}</p>
@@ -434,13 +524,20 @@ export function CheckoutPage() {
               {selectedMethod === "paylater"   && <SimplePanel title="Pay Later"       message="Pay after your booking with supported services." />}
               {selectedMethod === "points"     && <SimplePanel title="Redeem Points"   message="You have 0 BookMyShow Super Points available." />}
 
+              <p>Payment is simulated. No money is charged.</p>
+              {error && <p role="alert">{error}</p>}
+              {!session && <button type="button" onClick={openAuthModal}>Sign in</button>}
+              {!ready && !blocked && <button type="button" onClick={() => setReload(value => value + 1)}>Reload checkout</button>}
+              {blocked && <button type="button" onClick={() => router.push(checkout ? `/shows/${checkout.show_id}/seats` : "/")}>Select seats again</button>}
+              <button type="button" disabled={busy || !!checkout?.attempted} onClick={() => setError("Simulated payment failed. No confirmation was sent; your hold is unchanged.")}>Simulate payment failure</button>
               {/* Pay button inside panel */}
               <button
                 type="button"
                 className={styles.payNowBtn}
                 onClick={handlePay}
+                disabled={!ready || busy || blocked || !session}
               >
-                Pay {formatINR(orderTotal)}
+                {busy ? "Confirming…" : checkout?.attempted ? "Retry confirmation" : `Simulate payment · ${formatINR(orderTotal)}`}
               </button>
             </div>
           </div>
