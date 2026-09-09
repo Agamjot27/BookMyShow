@@ -165,7 +165,7 @@ type Ticket = { booking_id: string; user_id: string; show_id: string;
 | GET /bookings | Signed in | None | Paginated `Ticket` for current user, newest first |
 | GET /bookings/{id} | Owner | None | `Ticket` |
 
-Auth is passwordless OTP. Email is trimmed and lowercased; name is 1–100 characters (required only for first sign-up). OTP is 6 digits with a 5-minute TTL; up to 3 incorrect attempts before lockout. JWT access tokens use HS256 with verified issuer, audience, subject, and role (1-hour expiry, configurable via `JWT_EXPIRES_IN_SECONDS`). Refresh tokens are 30-day rotating single-use tokens stored as bcrypt hashes; rotation happens in a `FOR UPDATE`-locked transaction to prevent concurrent consumption. Frontend stores tokens in `localStorage`, auto-refreshes via `navigator.locks` 60 s before expiry, and syncs across tabs via the `storage` event. `POST /auth/logout` revokes all refresh tokens for the user; tokens expire naturally within 1 hour regardless. Public auth endpoints share a per-process limit of 30 requests per IP per 15 minutes (429 on exhaustion). Admin role is bootstrapped via the local seed — no role-management API exists.
+Auth is passwordless OTP. Email is trimmed and lowercased; name is 1–100 characters (required only for first sign-up). OTP is 6 digits with a 10-minute TTL; up to 5 incorrect attempts before lockout. JWT access tokens use HS256 with verified issuer, audience, subject, and role (1-hour expiry, configurable via `JWT_EXPIRES_IN_SECONDS`). Refresh tokens are 30-day rotating single-use tokens stored as SHA-256 hashes; rotation happens in a `FOR UPDATE`-locked transaction to prevent concurrent consumption. Frontend stores tokens in `localStorage`, auto-refreshes via `navigator.locks` 60 s before expiry, and syncs across tabs via the `storage` event. `POST /auth/logout` revokes all refresh tokens for the user; tokens expire naturally within 1 hour regardless. Public auth endpoints share a per-process limit of 30 requests per IP per 15 minutes (429 on exhaustion). Admin role is bootstrapped via the local seed — no role-management API exists.
 
 Seat-map response:
 
@@ -245,7 +245,7 @@ Compute all-time totals directly from confirmed bookings. Compute per-show seats
 
 ## 6. Implementation and verification boundary
 
-Use a small repository structure: `frontend/` for Next.js; `backend/` for Express routes, middleware, services, and pg repositories; `backend/db/` for SQL migrations and seed data. A local Compose file runs PostgreSQL and Redis. Seed an admin, two users, and a few events/shows with a small layout. Provide environment-variable examples and start/migrate/seed commands in the eventual README.
+Use a small repository structure: `frontend/` for Next.js; `backend/` for Express routes, middleware, services, and pg repositories; `backend/db/` for SQL migrations and seed data. A local Compose file runs PostgreSQL and Redis. Seed one admin account (`SEED_ADMIN_EMAIL`) and one demo user account, a full event catalogue, and a week of shows across six screens. Provide environment-variable examples and start/migrate/seed commands in the README.
 
 Required checks when implementing:
 

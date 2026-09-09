@@ -197,16 +197,15 @@ For this take-home, success means demonstrable functionality and correctness rat
 - Advanced search, media uploads, bulk administration, and analytics exports.
 - Waitlists, recurring event scheduling, and production-scale operational infrastructure.
 
-## 6. Open questions
+## 6. Resolved design decisions
 
-The defaults below allow implementation to proceed without expanding scope.
-
-| Question | Proposed V1 default |
+| Question | Decision |
 |---|---|
-| Should sign-in be implemented or mocked? | Minimal sign-in using seeded user and admin accounts |
-| What hold duration and booking limit should apply? | Five minutes; maximum six seats per booking |
-| How should real-time availability be delivered? | Poll every two seconds; backend remains authoritative |
-| Are all event categories reserved-seat events? | Yes, including concerts and standup |
-| Which currency and timezone should be used? | INR and Asia/Kolkata; store timestamps in UTC |
-| When should booking close? | At show start time; confirmation must occur before then |
-| Can admins change shows after seats are held or sold? | No; block edits and deletion for V1 |
+| Sign-in mechanism | Passwordless OTP — users enter their email, receive a 6-digit code, and are issued JWT access token plus rotating refresh token |
+| Admin account | Bootstrapped via seed: `SEED_ADMIN_EMAIL` is upserted with `role='admin'`; same OTP login flow applies |
+| Hold duration and booking limit | Five minutes from acquisition; maximum six seats per booking |
+| Real-time availability | Seat map polls every one second while the page is visible; backend remains authoritative |
+| Event categories | All categories (movies, standup, concerts) use reserved seating |
+| Currency and timezone | INR; timestamps stored in UTC |
+| Booking close time | At show start time; confirmation must succeed before then |
+| Show editing after activity | Blocked once active holds or confirmed bookings exist |
