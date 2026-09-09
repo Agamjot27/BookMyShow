@@ -9,6 +9,12 @@ A full-stack ticket booking platform: browse movies, standup shows, and concerts
 
 ## Screenshots
 
+### Home page
+<img width="1853" height="938" alt="image" src="https://github.com/user-attachments/assets/1561f8e7-96a6-47c0-b7a4-3f56b8aeecc1" />
+<img width="1862" height="942" alt="image" src="https://github.com/user-attachments/assets/981d3506-0e17-4cec-8c87-ffe7ff40a0fe" />
+<img width="1866" height="943" alt="image" src="https://github.com/user-attachments/assets/23049fe9-115e-4cab-bce5-1aea068b5d5c" />
+
+
 ### Movies home page
 ![Movies home page](docs/screenshots/01-movies-home.png)
 
