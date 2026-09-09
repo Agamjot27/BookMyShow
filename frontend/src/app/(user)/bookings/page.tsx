@@ -1,3 +1,7 @@
 "use client";
-import { PlaceholderPage } from "@/components/placeholder-page";
-export default function Page() { return <PlaceholderPage title="Booking history" />; }
+
+import { ProfilePage } from "@/components/profile/profile-page";
+
+export default function Page() {
+  return <ProfilePage initialTab="orders" />;
+}
