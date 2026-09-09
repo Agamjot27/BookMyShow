@@ -1,3 +1,3 @@
 "use client";
-import { PlaceholderPage } from "@/components/placeholder-page";
-export default function Page() { return <PlaceholderPage title="Revenue and occupancy" />; }
+import { AdminDashboard } from "@/components/admin/admin-dashboard";
+export default function Page() { return <AdminDashboard />; }

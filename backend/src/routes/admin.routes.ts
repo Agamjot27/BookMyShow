@@ -1,10 +1,10 @@
 import { Router } from "express";
-import * as venuesCtrl  from "../controllers/venues.controller.js";
-import * as screensCtrl from "../controllers/screens.controller.js";
-import * as events from "../controllers/events.controller.js";
-import * as showsCtrl from "../controllers/shows.controller.js";
-import { handler as bookings } from "../controllers/bookings.controller.js";
-import { handler as analytics } from "../controllers/analytics.controller.js";
+import * as venuesCtrl   from "../controllers/venues.controller.js";
+import * as screensCtrl  from "../controllers/screens.controller.js";
+import * as events       from "../controllers/events.controller.js";
+import * as showsCtrl    from "../controllers/shows.controller.js";
+import * as adminBookings from "../controllers/admin-bookings.controller.js";
+import * as analyticsCtrl from "../controllers/analytics.controller.js";
 
 export const adminRouter = Router();
 
@@ -40,9 +40,9 @@ adminRouter.get("/shows/:id",      showsCtrl.adminGetOne);
 adminRouter.patch("/shows/:id",    showsCtrl.adminUpdate);
 adminRouter.delete("/shows/:id",   showsCtrl.adminDelete);
 
-// ── Bookings (read-only admin view, not yet implemented) ─────────────────────
-adminRouter.get("/bookings",       bookings);
-adminRouter.get("/bookings/:id",   bookings);
+// ── Bookings (read-only admin view) ─────────────────────────────────────────
+adminRouter.get("/bookings",       adminBookings.list);
+adminRouter.get("/bookings/:id",   adminBookings.getOne);
 
 // ── Analytics ────────────────────────────────────────────────────────────────
-adminRouter.get("/analytics",      analytics);
+adminRouter.get("/analytics",      analyticsCtrl.getDashboard);

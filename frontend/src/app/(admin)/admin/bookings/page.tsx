@@ -1,3 +1,3 @@
 "use client";
-import { PlaceholderPage } from "@/components/placeholder-page";
-export default function Page() { return <PlaceholderPage title="Manage bookings" />; }
+import { AdminBookingsList } from "@/components/admin/admin-bookings-list";
+export default function Page() { return <AdminBookingsList />; }

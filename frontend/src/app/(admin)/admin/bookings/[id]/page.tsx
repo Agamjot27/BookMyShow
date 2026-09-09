@@ -1,3 +1,8 @@
 "use client";
-import { PlaceholderPage } from "@/components/placeholder-page";
-export default function Page() { return <PlaceholderPage title="bookings details" />; }
+import { use } from "react";
+import { AdminBookingDetail } from "@/components/admin/admin-booking-detail";
+
+export default function Page({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  return <AdminBookingDetail bookingId={id} />;
+}

@@ -84,3 +84,118 @@ export async function listForUser(userId: string, client: QueryClient = pool) {
      ORDER BY b.created_at DESC`, [userId]);
   return result.rows;
 }
+
+// ── Admin booking types & queries ──────────────────────────────────────────
+
+export type AdminBookingSummary = {
+  booking_id: string;
+  status: string;
+  total_amount: string;
+  created_at: string;
+  event_title: string;
+  start_time: string;
+  venue_name: string;
+  seat_count: number;
+  user_email: string;
+  user_name: string;
+};
+
+export type AdminBookingDetail = Record<string, unknown>;
+
+export type AdminBookingListOptions = {
+  page: number;
+  page_size: number;
+  status?: string;
+  show_id?: string;
+  event_id?: string;
+};
+
+export async function listAllBookings(options: AdminBookingListOptions): Promise<{
+  items: AdminBookingSummary[];
+  total: number;
+  page: number;
+  page_size: number;
+}> {
+  const conditions: string[] = [];
+  const params: unknown[] = [];
+
+  if (options.status) {
+    params.push(options.status);
+    conditions.push(`b.status = $${params.length}`);
+  }
+  if (options.show_id) {
+    params.push(options.show_id);
+    conditions.push(`b.show_id = $${params.length}`);
+  }
+  if (options.event_id) {
+    params.push(options.event_id);
+    conditions.push(`s.event_id = $${params.length}`);
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+
+  params.push(options.page_size);
+  const limitParam = params.length;
+  params.push((options.page - 1) * options.page_size);
+  const offsetParam = params.length;
+
+  const result = await pool.query<{ items: AdminBookingSummary[]; total: number }>(
+    `WITH filtered AS (
+       SELECT b.booking_id, b.status, b.total_amount::text, b.created_at::text,
+         e.title AS event_title, s.start_time::text, v.name AS venue_name,
+         (SELECT COUNT(*)::int FROM booking_seats bs WHERE bs.booking_id = b.booking_id) AS seat_count,
+         u.email AS user_email, u.name AS user_name
+       FROM bookings b
+       JOIN shows s ON s.show_id = b.show_id
+       JOIN events e ON e.event_id = s.event_id
+       JOIN screens sc ON sc.screen_id = s.screen_id
+       JOIN venues v ON v.venue_id = sc.venue_id
+       JOIN users u ON u.user_id = b.user_id
+       ${where}
+     ), paged AS (
+       SELECT * FROM filtered ORDER BY created_at DESC LIMIT $${limitParam} OFFSET $${offsetParam}
+     )
+     SELECT (SELECT count(*)::integer FROM filtered) AS total,
+       COALESCE((SELECT json_agg(p ORDER BY p.created_at DESC) FROM paged p), '[]'::json) AS items`,
+    params,
+  );
+  return {
+    items: result.rows[0]?.items ?? [],
+    total: result.rows[0]?.total ?? 0,
+    page: options.page,
+    page_size: options.page_size,
+  };
+}
+
+/** Full booking detail for admin — no user_id ownership check. */
+export async function adminTicketById(id: string): Promise<AdminBookingDetail | null> {
+  const result = await pool.query<{ ticket: AdminBookingDetail }>(
+    `SELECT json_build_object(
+      'booking_id', b.booking_id, 'status', b.status, 'total_amount', b.total_amount::text,
+      'currency', 'INR', 'created_at', b.created_at,
+      'user', json_build_object('user_id', u.user_id, 'name', u.name, 'email', u.email),
+      'event', json_build_object('event_id', e.event_id, 'title', e.title),
+      'venue', json_build_object('venue_id', v.venue_id, 'name', v.name, 'address', v.address),
+      'screen', json_build_object('screen_id', sc.screen_id, 'name', sc.name),
+      'start_time', s.start_time, 'end_time', s.end_time,
+      'seats', (
+        SELECT json_agg(json_build_object(
+          'seat_id', seat.seat_id, 'row', seat."row",
+          'number', seat.number, 'label', seat."row" || seat.number::text,
+          'price', bs.price::text
+        ) ORDER BY length(seat."row"), seat."row", seat.number)
+        FROM booking_seats bs JOIN seats seat ON seat.seat_id = bs.seat_id
+        WHERE bs.booking_id = b.booking_id
+      )
+    ) AS ticket
+    FROM bookings b
+    JOIN shows s ON s.show_id = b.show_id
+    JOIN events e ON e.event_id = s.event_id
+    JOIN screens sc ON sc.screen_id = s.screen_id
+    JOIN venues v ON v.venue_id = sc.venue_id
+    JOIN users u ON u.user_id = b.user_id
+    WHERE b.booking_id = $1`,
+    [id],
+  );
+  return result.rows[0]?.ticket ?? null;
+}
