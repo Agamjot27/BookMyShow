@@ -1,8 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { pool } from "./client.js";
 import { withTransaction } from "./transactions.js";
-import { hashPassword, verifyPassword } from "../src/lib/password.js";
-import { parseRegistration } from "../src/middleware/auth-validation.js";
 
 // Keep demo identities stable across runs, including when the calendar changes.
 function demoId(key: string): string {
@@ -86,29 +84,32 @@ function buildShows(anchor: Date) {
 
 try {
   if (process.env.NODE_ENV === "production") throw new Error("Local seed is disabled in production");
+
+  // ── Accounts ──────────────────────────────────────────────────────────────
+  // Auth is OTP-only; no passwords are stored or required for seed accounts.
+  // SEED_ADMIN_EMAIL is upserted as role='admin' so that the configured email
+  // receives admin role when it logs in via OTP for the first time.
+  // SEED_USER_EMAIL is upserted as role='user' (a convenience demo account).
+  // If the email already exists, the seed promotes/confirms its role without
+  // changing anything else. Reruns are fully idempotent.
   const accounts = [
-    { name: "Local Admin", email: process.env.SEED_ADMIN_EMAIL ?? "admin@example.test", password: process.env.SEED_ADMIN_PASSWORD, role: "admin" },
-    { name: "Local User", email: process.env.SEED_USER_EMAIL ?? "user@example.test", password: process.env.SEED_USER_PASSWORD, role: "user" },
+    { name: "Local Admin", email: (process.env.SEED_ADMIN_EMAIL ?? "admin@example.test").trim().toLowerCase(), role: "admin" },
+    { name: "Local User",  email: (process.env.SEED_USER_EMAIL  ?? "user@example.test").trim().toLowerCase(),  role: "user" },
   ];
-  const prepared = await Promise.all(accounts.map(async account => {
-    const input = parseRegistration({ name: account.name, email: account.email, password: account.password });
-    return { ...input, role: account.role, hash: await hashPassword(input.password) };
-  }));
-  if (prepared[0].email === prepared[1].email) throw new Error("Seed emails must be different");
+  if (!accounts[0].email || !accounts[1].email) throw new Error("SEED_ADMIN_EMAIL and SEED_USER_EMAIL must be non-empty");
+  if (accounts[0].email === accounts[1].email) throw new Error("SEED_ADMIN_EMAIL and SEED_USER_EMAIL must be different");
   await withTransaction(async client => {
     // Concurrent seed runs cannot choose different anchors or race over slots.
     await client.query("SELECT pg_advisory_xact_lock(917403)");
-    for (const account of prepared) {
-      const result = await client.query(
-        "INSERT INTO users (user_id, name, email, password_hash, role) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (lower(email)) DO NOTHING RETURNING user_id",
-        [randomUUID(), account.name, account.email, account.hash, account.role],
+    for (const account of accounts) {
+      // Insert new user without password_hash (OTP-only); if the email already
+      // exists, promote/confirm the configured role via UPDATE so reruns are safe.
+      await client.query(
+        `INSERT INTO users (user_id, name, email, password_hash, role)
+         VALUES ($1, $2, $3, NULL, $4)
+         ON CONFLICT (lower(email)) DO UPDATE SET role = EXCLUDED.role`,
+        [randomUUID(), account.name, account.email, account.role],
       );
-      if (!result.rowCount) {
-        const existing = await client.query("SELECT role, password_hash FROM users WHERE lower(email) = $1", [account.email]);
-        if (existing.rows[0]?.role !== account.role || !existing.rows[0]?.password_hash || !await verifyPassword(account.password, existing.rows[0].password_hash)) {
-          throw new Error("Existing seed account differs from local seed configuration; no credentials or roles were overwritten");
-        }
-      }
     }
     for (const event of EVENTS) {
       await client.query(
@@ -173,7 +174,7 @@ try {
     if (legacyOverlaps.rowCount) console.warn("Existing overlapping shows need manual reconciliation; seed does not delete or reschedule existing shows.");
     console.log(`${insertedShows} new shows prepared; ${skippedShows} conflicting slots skipped`);
   });
-  console.log("Seed complete: demo catalogue, 6 screens with 100 seats each, and shows. Credentials remain in local SEED_* variables.");
+  console.log(`Seed complete: admin → ${accounts[0].email}, demo user → ${accounts[1].email}. Log in via OTP with either email.`);
 } catch (error) {
   console.error("Seed failed:", error instanceof Error && !("code" in error) ? error.message : error);
   process.exitCode = 1;

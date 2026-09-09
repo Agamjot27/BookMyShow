@@ -17,7 +17,7 @@ V1 should demonstrate a reliable end-to-end booking flow and basic administratio
 | End user | Find an event and reserve seats | Browse events, compare showtimes, see current seat availability, complete checkout, retrieve tickets |
 | Admin | Publish bookable shows and track performance | Manage event and venue data, configure seats, schedule shows, inspect bookings and basic metrics |
 
-**Access assumption:** Support backend registration and login, plus seeded end-user and admin accounts. Public registration creates normal users only. Password recovery and account management are excluded. Browsing is public; booking and history require sign-in. Admin routes and APIs require the admin role. Registration was added to the backend foundation scope on September 9, 2026; frontend integration remains a later step.
+**Access assumption:** Authentication uses a passwordless OTP flow — users enter their email, receive a 6-digit OTP, and are issued a JWT access token plus a rotating refresh token. Public sign-up is implicit: verifying an OTP for a new email creates a `user`-role account automatically. Admin accounts are bootstrapped via the local seed (see setup instructions). Password recovery and account management are excluded. Browsing is public; booking and history require sign-in. Admin routes and APIs require the admin role.
 
 ## 3. User stories and acceptance criteria
 

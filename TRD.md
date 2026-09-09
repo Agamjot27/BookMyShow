@@ -32,7 +32,7 @@ Use **exactly these eight entities**. The requested fields are retained; primary
 | shows | `show_id uuid PK`, `event_id uuid FK -> events`, `screen_id uuid FK -> screens`, `start_time timestamptz`, `end_time timestamptz`, `base_price numeric(12,2)` |
 | bookings | `booking_id uuid PK`, `user_id uuid FK -> users`, `show_id uuid FK -> shows`, `status text CHECK IN ('confirmed')`, `total_amount numeric(12,2)`, `created_at timestamptz DEFAULT now()`, `idempotency_key uuid`, `request_hash text`, `hold_token uuid` |
 | booking_seats | `booking_id uuid`, `seat_id uuid FK -> seats`, `show_id uuid FK -> shows`, `price numeric(12,2)`, `PRIMARY KEY (booking_id, seat_id)` |
-| users | `user_id uuid PK`, `name text`, `email text`, `password_hash text`, `role text CHECK IN ('user','admin')` |
+| users | `user_id uuid PK`, `name text`, `email text`, `password_hash text nullable` (null for OTP-only users), `role text CHECK IN ('user','admin')` |
 
 Supporting fields serve existing requirements: event description, booking history time, and durable confirmation deduplication. `booking_id` is also the public booking reference. Failed payment attempts create no booking; cancellation and pending-payment lifecycles are excluded.
 
@@ -147,8 +147,10 @@ type Ticket = { booking_id: string; user_id: string; show_id: string;
 
 | Method and path | Access | Request / query | Response |
 |---|---|---|---|
-| POST /auth/login | Public | `{email, password}` | `{access_token, expires_in: 3600, user: User}` |
-| POST /auth/register | Public | `{name, email, password}`; role cannot be supplied | 201 `{access_token, expires_in: 3600, user: User}`; always creates role `user` |
+| POST /auth/request-otp | Public | `{email}` | `{message}` — sends 6-digit OTP to email |
+| POST /auth/verify-otp | Public | `{email, otp, name?}` — `name` required for first sign-up | `{access_token, refresh_token, expires_in, user: User, is_new_user}`; always creates role `user` for new accounts |
+| POST /auth/refresh | Public | `{refresh_token}` | `{access_token, refresh_token, expires_in, user: User}` |
+| POST /auth/logout | Signed in | None | 204; revokes all refresh tokens for the user |
 | GET /auth/me | Signed in | None | `User` |
 | GET /events | Public | Optional `type=movie|standup|concert` | Paginated `Event`; only events with upcoming shows |
 | GET /events/{id} | Public | None | `Event` |
@@ -163,9 +165,7 @@ type Ticket = { booking_id: string; user_id: string; show_id: string;
 | GET /bookings | Signed in | None | Paginated `Ticket` for current user, newest first |
 | GET /bookings/{id} | Owner | None | `Ticket` |
 
-Logout clears the frontend's in-memory token; there is no refresh-token or logout API in V1. A page reload requires sign-in again. Hold lookup restores the checkout deadline after reauthentication when the token remains in session storage. Never store passwords or JWTs there.
-
-Backend foundation extension (September 9, 2026): registration is now included. Email is trimmed and lowercased; name is 1–100 characters; new passwords require at least 12 characters and at most 72 UTF-8 bytes. Unknown body fields, including role, are rejected. Passwords use asynchronous bcrypt at cost 12. Duplicate email returns 409 `EMAIL_ALREADY_EXISTS`; invalid login returns 401 `INVALID_CREDENTIALS`. JWT expiry is configurable via `JWT_EXPIRES_IN_SECONDS` (default 3600). `/me` is an authenticated alias for `/auth/me`. Public auth endpoints share a per-process limit of 30 requests per IP per 15 minutes (429 on exhaustion). The local seed creates one admin and one normal user without overwriting existing credentials or roles. No frontend auth integration is included yet.
+Auth is passwordless OTP. Email is trimmed and lowercased; name is 1–100 characters (required only for first sign-up). OTP is 6 digits with a 5-minute TTL; up to 3 incorrect attempts before lockout. JWT access tokens use HS256 with verified issuer, audience, subject, and role (1-hour expiry, configurable via `JWT_EXPIRES_IN_SECONDS`). Refresh tokens are 30-day rotating single-use tokens stored as bcrypt hashes; rotation happens in a `FOR UPDATE`-locked transaction to prevent concurrent consumption. Frontend stores tokens in `localStorage`, auto-refreshes via `navigator.locks` 60 s before expiry, and syncs across tabs via the `storage` event. `POST /auth/logout` revokes all refresh tokens for the user; tokens expire naturally within 1 hour regardless. Public auth endpoints share a per-process limit of 30 requests per IP per 15 minutes (429 on exhaustion). Admin role is bootstrapped via the local seed — no role-management API exists.
 
 Seat-map response:
 
@@ -237,7 +237,7 @@ Compute all-time totals directly from confirmed bookings. Compute per-show seats
 - **Expiry:** five minutes from acquisition, no automatic renewal. Server TTL is authoritative; client countdown uses `server_time` and `expires_at`. Expired checkout disables confirm and returns to selection. The final validation instant described above determines acceptance.
 - **Freshness:** poll the seat map every one second while it is visible to leave latency budget for the PRD's two-second target under local demo conditions. Refresh immediately on focus, hold/release, and conflicts; stop polling on navigation. Handle background browser throttling by refetching on focus. No WebSockets required.
 - **Authorization:** JWT middleware verifies signature using an explicitly allowed algorithm, expiry, issuer, and audience, then uses `sub` as user ID. Admin middleware verifies the signed role claim. Tokens expire in one hour; seeded roles are not editable in V1. Booking queries include `user_id = authenticated sub`.
-- **Security:** hash seeded passwords with bcrypt, use parameterized SQL, validate request bodies and limits, keep secrets in environment variables, never expose password hashes or log JWTs/hold tokens. Use HTTPS when deployed. In-memory bearer JWTs avoid cookie-based CSRF handling for this version.
+- **Security:** use parameterized SQL, validate request bodies and limits, keep secrets in environment variables, never expose password hashes or log JWTs/hold tokens. Use HTTPS when deployed. In-memory bearer JWTs avoid cookie-based CSRF handling for this version.
 - **Dependency failures:** if Redis is unavailable, return 503 for seat availability, hold, release, and new confirmation rather than inventing availability. Catalog and persisted tickets remain readable; completed confirmation replays can be served from PostgreSQL. Redis restart may lose unconfirmed holds. PostgreSQL failure prevents new bookings.
 - **Bounded transactions:** configure short SQL lock/statement timeouts and Redis request timeouts; target completion within two seconds in normal local operation. Roll back on timeout and return a retryable 503. Never await user input or an external payment provider while holding a database lock.
 - **Usability:** seat buttons support keyboard interaction, readable labels, and text/legend indicators beyond color. Display loading, empty, expired-hold, unavailable-seat, payment-failure, and API-error states.
