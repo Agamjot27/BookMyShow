@@ -191,7 +191,7 @@ For this take-home, success means demonstrable functionality and correctness rat
 - Multi-city search and location discovery.
 - Discounts, coupons, offers, and loyalty programs.
 - Recommendation engines.
-- Social sign-in, password recovery, and profile management APIs.
+- Social sign-in, password recovery, and profile editing.
 - General-admission inventory, complex seating layouts, and seat-specific pricing.
 - Ticket downloads, QR validation, and venue check-in.
 - Advanced search, media uploads, bulk administration, and analytics exports.
