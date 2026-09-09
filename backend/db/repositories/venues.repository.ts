@@ -159,7 +159,7 @@ export async function upsertLayout(
     await client.query(
       `INSERT INTO seats (seat_id, screen_id, "row", number, seat_type, price_tier)
        SELECT * FROM unnest(
-         $1::uuid[], $2::text[], $3::text[], $4::integer[], $5::text[], $6::text[]
+         $1::uuid[], $2::uuid[], $3::text[], $4::integer[], $5::text[], $6::text[]
        ) AS t(seat_id, screen_id, "row", number, seat_type, price_tier)`,
       [rows, Array(input.seats.length).fill(screenId), rowLs, nums, types, tiers],
     );
@@ -173,4 +173,10 @@ export async function upsertLayout(
   );
 
   return listSeats(screenId, client);
+}
+
+/** Shared lifecycle lock. Acquire before a show-row lock whenever both are needed. */
+export async function lockScreen(client: PoolClient, id: string): Promise<boolean> {
+  const result = await client.query("SELECT screen_id FROM screens WHERE screen_id = $1 FOR UPDATE", [id]);
+  return Boolean(result.rowCount);
 }

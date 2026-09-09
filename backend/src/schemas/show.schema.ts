@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { eventListSchema } from "./event.schema.js";
+import { parseInput } from "../lib/validation.js";
 
 const uuid = z.string().regex(
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
@@ -30,15 +31,19 @@ export const adminShowListSchema = z.strictObject({
   }
 });
 
-// ISO-8601 datetime string with timezone — we accept the common formats browsers send.
-const isoDatetime = z.string().refine((v) => {
-  const d = new Date(v);
-  return !isNaN(d.getTime());
-}, { message: "Must be a valid ISO-8601 datetime string" });
+// Require a calendar-valid ISO timestamp with an explicit UTC/offset timezone.
+const isoDatetime = z.iso.datetime({ offset: true }).refine(
+  value => Number.isFinite(Date.parse(value)) && Date.parse(value) > Date.now(),
+  { message: "Start time must be in the future" },
+);
 
-// base_price: numeric string like "250" or "250.00", non-negative, max 12 digits + 2 dec.
+export function validateShowStart(value: string): Date {
+  return new Date(parseInput(z.object({ start_time: isoDatetime }), { start_time: value }).start_time);
+}
+
+// numeric(12,2): ten integer digits and two fractional digits.
 const basePrice = z.string()
-  .regex(/^\d{1,12}(\.\d{1,2})?$/, "Price must be a non-negative number with at most 2 decimal places")
+  .regex(/^\d{1,10}(\.\d{1,2})?$/, "Price must be between 0 and 9999999999.99 with at most 2 decimal places")
   .refine((v) => parseFloat(v) >= 0, { message: "Price must be non-negative" });
 
 export const createShowSchema = z.strictObject({

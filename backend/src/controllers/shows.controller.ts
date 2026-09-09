@@ -51,6 +51,3 @@ export const adminDelete: RequestHandler = async (req, res) => {
   await shows.adminDelete(id);
   res.status(204).end();
 };
-
-// Keep this export so any old import of `handler` still resolves (bookings admin etc.)
-export { notImplemented as handler } from "./not-implemented.js";

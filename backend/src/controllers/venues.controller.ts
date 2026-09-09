@@ -31,7 +31,4 @@ export const remove: RequestHandler = async (req, res) => {
   res.status(204).end();
 };
 
-// Legacy handler export so admin.routes.ts still compiles without changes
-// (admin router uses a generic `handler` for each resource in a loop).
 // We replace those routes below in the updated admin.routes.ts.
-export { notImplemented as handler } from "./not-implemented.js";

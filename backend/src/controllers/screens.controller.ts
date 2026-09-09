@@ -44,6 +44,3 @@ export const putLayout: RequestHandler = async (req, res) => {
   const seats  = await venues.upsertLayout(id, input);
   res.json({ seats });
 };
-
-// Legacy handler export so admin.routes.ts loop still compiles.
-export { notImplemented as handler } from "./not-implemented.js";

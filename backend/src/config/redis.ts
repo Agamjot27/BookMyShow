@@ -25,7 +25,7 @@ return 'ok'
 `;
 
 // In-memory fallback store for development when Redis is not running locally.
-class MemoryStore {
+export class MemoryStore {
   private store = new Map<string, { value: string; expiresAt: number }>();
 
   private cleanupExpired(key: string): boolean {
@@ -79,6 +79,8 @@ class MemoryStore {
   }
 
   evalShared(script: string, keys: string[], args: string[]): unknown {
+    // Match Redis reads/EXISTS: expire every participating key before replay or acquisition.
+    for (const key of keys) this.cleanupExpired(key);
     if (script.includes("MGET")) {
       return keys.map(k => {
         if (!this.cleanupExpired(k)) return null;

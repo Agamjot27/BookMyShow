@@ -73,6 +73,8 @@ export const venuesApi = {
 // ── Screens ────────────────────────────────────────────────────────────────
 
 export const screensApi = {
+  list: (token: string) =>
+    adminFetch<{ screens: Screen[] }>("/api/admin/screens", token).then(d => d.screens),
   listByVenue: (venueId: string, token: string) =>
     adminFetch<{ screens: Screen[] }>(`/api/admin/screens?venue_id=${venueId}`, token).then((d) => d.screens),
 

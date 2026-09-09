@@ -14,22 +14,21 @@ export default function Page() {
 
   useEffect(() => {
     if (!session) return;
+    let active = true;
+    setError("");
+    setScreens(null);
     Promise.all([
-      screensApi.listByVenue("", session.accessToken).catch(() => [] as Screen[]),
+      screensApi.list(session.accessToken),
       venuesApi.list(session.accessToken),
     ])
-      .then(([_s, vs]) => {
+      .then(([items, vs]) => {
+        if (!active) return;
         const map = new Map(vs.map((v: Venue) => [v.venue_id, v.name]));
         setVenues(map);
-        // listByVenue with empty string → falls back to list all
-        return fetch("/api/admin/screens", {
-          headers: { Authorization: `Bearer ${session.accessToken}` },
-          cache: "no-store",
-        })
-          .then((r) => r.json())
-          .then((d: { screens: Screen[] }) => setScreens(d.screens));
+        setScreens(items);
       })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : "Failed to load screens"));
+      .catch((e: unknown) => { if (active) setError(e instanceof Error ? e.message : "Failed to load screens"); });
+    return () => { active = false; };
   }, [session]);
 
   return (

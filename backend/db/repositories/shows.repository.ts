@@ -68,7 +68,7 @@ export async function listAllShows(
 // ── Overlap detection (runs INSIDE a transaction with a screen-level lock) ─
 
 /**
- * Acquire an advisory lock keyed to the screen, then check whether the given
+ * Acquire the shared screen-row lock, then check whether the given
  * [start, end) interval overlaps any existing show on that screen.
  * Excludes `excludeShowId` so updates can ignore the show being edited.
  *
@@ -81,10 +81,9 @@ export async function checkOverlapLocked(
   endTime: Date,
   excludeShowId?: string,
 ): Promise<boolean> {
-  // Advisory lock on the screen UUID (converted to int8 via hashtext) prevents
-  // two concurrent transactions from both passing the overlap check simultaneously.
+  // The same row lock is used by layout replacement and screen deletion.
   await client.query(
-    "SELECT pg_advisory_xact_lock(hashtext($1))", [screenId],
+    "SELECT screen_id FROM screens WHERE screen_id = $1 FOR UPDATE", [screenId],
   );
 
   const result = await client.query<{ overlaps: boolean }>(
@@ -130,13 +129,13 @@ export async function updateShow(
 }
 
 export async function deleteShow(
-  id: string,
+  id: string, client: PoolClient,
 ): Promise<"deleted" | "not_found" | "has_bookings"> {
-  const dep = await pool.query(
+  const dep = await client.query(
     "SELECT 1 FROM bookings WHERE show_id = $1 AND status = 'confirmed' LIMIT 1", [id],
   );
   if (dep.rowCount) return "has_bookings";
-  const result = await pool.query("DELETE FROM shows WHERE show_id = $1", [id]);
+  const result = await client.query("DELETE FROM shows WHERE show_id = $1", [id]);
   return result.rowCount ? "deleted" : "not_found";
 }
 

@@ -4,6 +4,7 @@ import * as repository from "../../db/repositories/bookings.repository.js";
 import * as inventory from "../../db/repositories/holds.repository.js";
 import { checkOrRelease } from "../lib/seat-holds.js";
 import { ApiError } from "../lib/api-error.js";
+import { validateBookingTotal } from "../lib/booking-total.js";
 import type { ConfirmationInput } from "../schemas/booking.schema.js";
 
 function replay(rows: repository.BookingRecord[], userId: string, key: string, hash: string) {
@@ -26,6 +27,7 @@ export async function confirm(userId: string, key: string, input: ConfirmationIn
       if (!show) throw new ApiError(404, "SHOW_NOT_FOUND", "Show not found");
       const existing = replay(await repository.findReplays(userId, key, input.hold_token, client), userId, key, hash);
       if (existing) return { created: false, ticket: await repository.ticket(existing.booking_id, userId, client) };
+      validateBookingTotal(show.base_price, input.seat_ids.length);
       const seats = await inventory.inspectSeats(client, input.show_id, show.screen_id, input.seat_ids);
       if (seats.length !== input.seat_ids.length) throw new ApiError(400, "VALIDATION_ERROR", "Check the submitted fields", { seat_ids: "Every seat must belong to this show's screen" });
       if (seats.some(seat => seat.booked)) throw new ApiError(409, "SEATS_UNAVAILABLE", "One or more seats are already booked");

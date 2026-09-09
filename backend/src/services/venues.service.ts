@@ -62,10 +62,11 @@ export async function updateScreen(id: string, input: import("../schemas/venue.s
 }
 
 export async function deleteScreen(id: string) {
-  const result = await repository.deleteScreen(id);
-  if (result === "not_found") throw new ApiError(404, "SCREEN_NOT_FOUND", "Screen not found");
-  if (result === "has_shows")
-    throw new ApiError(409, "SCREEN_HAS_SHOWS", "Remove all shows from this screen before deleting it");
+  await withTransaction(async client => {
+    if (!await repository.lockScreen(client, id)) throw new ApiError(404, "SCREEN_NOT_FOUND", "Screen not found");
+    const result = await repository.deleteScreen(id, client);
+    if (result === "has_shows") throw new ApiError(409, "SCREEN_HAS_SHOWS", "Remove all shows from this screen before deleting it");
+  });
 }
 
 // ── Seat layout ────────────────────────────────────────────────────────────
@@ -76,24 +77,9 @@ export async function getSeats(screenId: string) {
 }
 
 export async function upsertLayout(screenId: string, input: UpsertLayoutInput) {
-  await getScreen(screenId);
-
-  // Once a screen has shows the seat inventory is depended on by show bookings
-  // and Redis holds. Block any layout replacement to prevent invalidating
-  // existing seat IDs. The intended workflow is: configure layout → then add shows.
-  if (await repository.screenHasShows(screenId)) {
-    throw new ApiError(
-      409,
-      "SCREEN_HAS_SHOWS",
-      "This screen already has shows scheduled. The seat layout cannot be changed once shows exist. " +
-      "Remove all shows from this screen first, or create a new screen for the updated layout.",
-    );
-  }
-
   try {
     return await withTransaction(async (client) => {
-      // Re-check inside the transaction to close the TOCTOU window between the
-      // check above and the DELETE — a show could be inserted concurrently.
+      if (!await repository.lockScreen(client, screenId)) throw new ApiError(404, "SCREEN_NOT_FOUND", "Screen not found");
       if (await repository.screenHasShows(screenId, client)) {
         throw new ApiError(
           409,

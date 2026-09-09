@@ -1,10 +1,11 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
+import { useCatalogue } from "../catalogue";
 import { useEffect, useRef, useState, useId, type CSSProperties } from "react";
 import {
   categories,
-  homeEvents,
   type Category,
   type HomeEvent,
 } from "./home-data";
@@ -30,6 +31,7 @@ function EventPoster({ event }: { event: HomeEvent }) {
           src={event.poster}
           alt=""
           fill
+          unoptimized
           sizes="(max-width: 600px) 155px, 200px"
           className={styles.posterImage}
           onError={() => setFailed(true)}
@@ -42,9 +44,9 @@ function EventPoster({ event }: { event: HomeEvent }) {
 function EventCard({ event }: { event: HomeEvent }) {
   return (
     <article className={styles.eventCard}>
-      <EventPoster event={event} />
+      <Link href={`/events/${event.id}`} aria-label={event.title}><EventPoster event={event} /></Link>
 
-      <h3>{event.title}</h3>
+      <h3><Link href={`/events/${event.id}`}>{event.title}</Link></h3>
       <p>{event.description}</p>
 
       <span className={styles.eventTag}>{event.category}</span>
@@ -130,8 +132,12 @@ function EventRail({
   );
 }
 
-export function HomePage() {
-  const [category, setCategory] = useState<Category>("All");
+export function HomePage({ initialCategory = "All" }: { initialCategory?: Category } = {}) {
+  const { events, loading, error } = useCatalogue();
+  const homeEvents: HomeEvent[] = events.map(event => ({ id: event.event_id, title: event.title,
+    category: event.type === "movie" ? "Movies" : event.type === "standup" ? "Standup" : "Concerts",
+    description: event.description, poster: event.poster_url, color: "#283e45", featured: true }));
+  const [category, setCategory] = useState<Category>(initialCategory);
 
   const filteredEvents = homeEvents.filter(
     (event) => category === "All" || event.category === category,
@@ -166,7 +172,7 @@ export function HomePage() {
             <p>Movies, standup and live music. Discover what moves you.</p>
           </div>
 
-          <span className={styles.previewLabel}>Sample events</span>
+          <span className={styles.previewLabel}>Upcoming events</span>
         </div>
 
         <div
@@ -190,11 +196,11 @@ export function HomePage() {
         </div>
 
         <p className={styles.srOnly} role="status">
-          {filteredEvents.length} sample events in {category}.
+          {filteredEvents.length} events in {category}.
         </p>
         <h2 className={styles.srOnly}>Browse {category === "All" ? "all events" : category.toLowerCase()}</h2>
 
-        {filteredEvents.length === 0 ? <p className={styles.emptyState}>No events in this category. Try another category.</p> : <EventRail
+        {loading ? <p role="status">Loading events…</p> : error ? <p role="alert">{error}</p> : filteredEvents.length === 0 ? <p className={styles.emptyState}>No events in this category. Try another category.</p> : <EventRail
           key={category}
           events={filteredEvents}
           label="recommended events"

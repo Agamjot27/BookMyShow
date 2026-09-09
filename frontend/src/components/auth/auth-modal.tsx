@@ -170,16 +170,18 @@ export function AuthModal({ open, onClose, onSuccess }: AuthModalProps) {
     setResending(true);
     setError("");
     try {
-      await fetch("/api/auth/request-otp", {
+      const res = await fetch("/api/auth/request-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim() }),
       });
+      const data = await res.json().catch(() => null) as { error?: { message?: string } } | null;
+      if (!res.ok) throw new Error(data?.error?.message ?? `Could not resend OTP (HTTP ${res.status})`);
       setOtp(["", "", "", "", "", ""]);
       startCooldown(30);
       setTimeout(() => otpRefs.current[0]?.focus(), 80);
-    } catch {
-      setError("Could not resend OTP. Please try again.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not resend OTP. Please try again.");
     } finally {
       setResending(false);
     }

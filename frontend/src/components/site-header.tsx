@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { CalendarDots, List, MagnifyingGlass, MapPin, NavigationArrow, PlusCircle, Spinner } from "@phosphor-icons/react";
+import { List, MagnifyingGlass, MapPin, NavigationArrow, PlusCircle, Spinner } from "@phosphor-icons/react";
 import { UiDialog } from "./ui-dialog";
 import { useLocation } from "./location-context";
 import { useAuth } from "./auth-provider";
@@ -112,7 +112,7 @@ export function SiteHeader() {
         <div className={styles.discovery}>
           <form action="/movies" role="search" className={styles.search}>
             <button type="submit" aria-label="Search movies"><MagnifyingGlass size={18} /></button>
-            <input name="q" type="search" aria-label="Search movies" placeholder="Search for Movies, Events, Plays, Sports and Activities" />
+            <input name="q" type="search" aria-label="Search movies" placeholder="Search for movies" />
           </form>
           <button
             className={styles.pill}
@@ -122,10 +122,9 @@ export function SiteHeader() {
             <MapPin size={17} />
             {detecting ? <Spinner size={14} className={styles.spin} /> : city}
           </button>
-          <button className={styles.pill} onClick={() => setPanel("Today")}><CalendarDots size={17} /> Today</button>
         </div>
         <div className={styles.actions}>
-          <button className={styles.listEvent} onClick={() => setPanel("List an Event")}><PlusCircle size={18} /> List an Event</button>
+          {session?.user.role === "admin" && <Link className={styles.listEvent} href="/admin/events/new"><PlusCircle size={18} /> List an Event</Link>}
           {session ? (
             <button className={styles.signIn} onClick={() => logout()}>Sign Out</button>
           ) : (
@@ -137,15 +136,13 @@ export function SiteHeader() {
       <div className={styles.bottomRow}>
         <nav className={styles.primaryNav} aria-label="Entertainment categories">
           <Link href="/movies" aria-current={isMovies ? "page" : undefined}>Movies</Link>
-          {["Stream", "Events", "Plays", "Sports", "Activities"].map(item => (
-            <button key={item} onClick={() => setPanel(item)}>{item}</button>
-          ))}
+          <Link href="/events">Events</Link>
+            <Link href="/standup">Standup</Link>
+            <Link href="/concerts">Concerts</Link>
         </nav>
         <nav className={styles.secondaryNav} aria-label="More from BookMyShow">
-          {["Corporates", "Offers", "Gift Cards"].map(item => (
-            <button key={item} onClick={() => setPanel(item)}>{item}</button>
-          ))}
-          <button onClick={() => setPanel("Exclusives")}><span className={styles.ticketMark}>my</span> Exclusives</button>
+          <Link href="/bookings">My bookings</Link>
+          {session?.user.role === "admin" && <Link href="/admin">Admin</Link>}
         </nav>
       </div>
 
@@ -161,13 +158,7 @@ export function SiteHeader() {
               ? <button onClick={() => { void logout(); close(); }}>Sign out</button>
               : <button onClick={() => { openAuthModal(); close(); }}>Sign in</button>}
           </div>
-        ) : (
-          <p>
-            {panel === "Today"
-              ? "Show dates will be available when movie showtimes are connected."
-              : `${panel} is not available in this movie-page preview.`}
-          </p>
-        )}
+        ) : null}
       </UiDialog>
     </header>
   );

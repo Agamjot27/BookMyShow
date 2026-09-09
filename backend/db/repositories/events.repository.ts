@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { pool } from "../client.js";
+import type { PoolClient } from "pg";
 import type { CreateEventInput, Event, EventList, EventListOptions, UpdateEventInput } from "../../src/types/event.js";
 
 export async function createEvent(input: CreateEventInput): Promise<Event> {
@@ -12,15 +13,20 @@ export async function createEvent(input: CreateEventInput): Promise<Event> {
   return result.rows[0];
 }
 
-export async function findEventById(id: string): Promise<Event | undefined> {
-  const result = await pool.query<Event>(
+export async function findEventById(id: string, client: Pick<PoolClient, "query"> = pool): Promise<Event | undefined> {
+  const result = await client.query<Event>(
     "SELECT event_id, type, title, duration, description, poster_url FROM events WHERE event_id = $1",
     [id],
   );
   return result.rows[0];
 }
 
-export async function updateEvent(id: string, input: UpdateEventInput): Promise<Event | undefined> {
+export async function lockEvent(client: PoolClient, id: string): Promise<Event | undefined> {
+  const result = await client.query<Event>("SELECT * FROM events WHERE event_id = $1 FOR UPDATE", [id]);
+  return result.rows[0];
+}
+
+export async function updateEvent(id: string, input: UpdateEventInput, client: PoolClient): Promise<Event | undefined> {
   const sets: string[] = [];
   const values: unknown[] = [id];
   if (input.type        !== undefined) { values.push(input.type);        sets.push(`type = $${values.length}`); }
@@ -31,8 +37,8 @@ export async function updateEvent(id: string, input: UpdateEventInput): Promise<
     values.push(input.poster_url ?? null);
     sets.push(`poster_url = $${values.length}`);
   }
-  if (sets.length === 0) return findEventById(id);
-  const result = await pool.query<Event>(
+  if (sets.length === 0) return findEventById(id, client);
+  const result = await client.query<Event>(
     `UPDATE events SET ${sets.join(", ")} WHERE event_id = $1
      RETURNING event_id, type, title, duration, description, poster_url`,
     values,
@@ -41,8 +47,8 @@ export async function updateEvent(id: string, input: UpdateEventInput): Promise<
 }
 
 /** Returns true when the event has at least one show (used to guard deletion). */
-export async function eventHasShows(id: string): Promise<boolean> {
-  const result = await pool.query(
+export async function eventHasShows(id: string, client: Pick<PoolClient, "query"> = pool): Promise<boolean> {
+  const result = await client.query(
     "SELECT 1 FROM shows WHERE event_id = $1 LIMIT 1", [id],
   );
   return Boolean(result.rowCount);

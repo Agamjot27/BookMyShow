@@ -112,7 +112,7 @@ export async function getRevenueByEvent(limit = 10): Promise<EventRevenue[]> {
     SELECT
       e.event_id,
       e.title AS event_title,
-      COUNT(DISTINCT b.booking_id)::int AS tickets_sold,
+      SUM((SELECT COUNT(*) FROM booking_seats bs WHERE bs.booking_id = b.booking_id AND bs.show_id = b.show_id))::int AS tickets_sold,
       COALESCE(SUM(b.total_amount), 0)::text AS revenue
     FROM events e
     JOIN shows s ON s.event_id = e.event_id

@@ -1,11 +1,15 @@
 "use client";
 
 import { useRouter, useSearchParams, useParams } from "next/navigation";
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { ArrowLeft, Wheelchair } from "@phosphor-icons/react";
 import { useAuth } from "@/components/auth-provider";
-import { saveCheckoutSession } from "@/components/checkout/booking-session";
+import { CHECKOUT_KEY, readCheckoutSession, saveCheckoutSession } from "@/components/checkout/booking-session";
 import styles from "./seat-layout.module.css";
+
+const HOLD_ATTEMPT_KEY = "bms_seat_hold_attempt";
+type HoldAttempt = { show_id: string; hold_token: string; seat_ids: string[]; user_id: string };
+const sameSeats = (a: string[], b: string[]) => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
 
 // ---------------------------------------------------------------------------
 // Types
@@ -186,10 +190,13 @@ export function SeatLayoutPage({ showId: propShowId }: { showId?: string }) {
   const [capped, setCapped] = useState(false);
   const [holdError, setHoldError] = useState("");
   const [isHolding, setIsHolding] = useState(false);
+  const holding = useRef(false);
+  const loadVersion = useRef(0);
 
   // Load show details and seats map
   const loadShowData = useCallback(async () => {
     if (!showId) return;
+    const version = ++loadVersion.current;
     try {
       setLoading(true);
       setLoadError("");
@@ -218,8 +225,28 @@ export function SeatLayoutPage({ showId: propShowId }: { showId?: string }) {
       const showData = (await showRes.json()) as ShowDetails;
       const seatsData = (await seatsRes.json()) as { seats: BackendSeat[] };
 
+      if (version !== loadVersion.current) return;
       setShow(showData);
       setSeats(seatsData.seats || []);
+      if (session) {
+        const checkout = readCheckoutSession();
+        const raw = sessionStorage.getItem(HOLD_ATTEMPT_KEY);
+        const pending = raw ? JSON.parse(raw) as HoldAttempt : null;
+        const previous = pending?.user_id === session.user.user_id && pending.show_id === showId ? pending
+          : checkout?.show_id === showId ? checkout : null;
+        if (previous) {
+          const response = await fetch(`/api/shows/${showId}/holds/${previous.hold_token}`, { headers, cache: "no-store" });
+          if (version !== loadVersion.current) return;
+          if (response.ok) {
+            const hold = await response.json();
+            sessionStorage.setItem(HOLD_ATTEMPT_KEY, JSON.stringify({ ...hold, user_id: session.user.user_id }));
+            setSelectedIds(new Set(hold.seat_ids));
+            setMaxSeats(hold.seat_ids.length);
+            setShowModal(false);
+          }
+        }
+      }
+
 
       // If any currently selected seats are no longer available, remove them
       setSelectedIds((prev) => {
@@ -236,15 +263,17 @@ export function SeatLayoutPage({ showId: propShowId }: { showId?: string }) {
         return next;
       });
     } catch (err) {
-      setLoadError(err instanceof Error ? err.message : "Failed to load show details.");
+      if (version === loadVersion.current) setLoadError(err instanceof Error ? err.message : "Failed to load show details.");
     } finally {
-      setLoading(false);
+      if (version === loadVersion.current) setLoading(false);
     }
   }, [showId, session?.accessToken]);
 
   // Initial load
   useEffect(() => {
+    setSelectedIds(new Set());
     loadShowData();
+    return () => { loadVersion.current++; };
   }, [loadShowData]);
 
   // Dynamic layout tiers based on backend seat data
@@ -337,25 +366,51 @@ export function SeatLayoutPage({ showId: propShowId }: { showId?: string }) {
 
   // Handle proceed to hold and checkout
   const handleContinue = async () => {
-    if (selectedIds.size === 0 || isHolding) return;
+    if (selectedIds.size === 0 || holding.current) return;
 
     if (!session) {
       openAuthModal();
       return;
     }
 
+    holding.current = true;
     setIsHolding(true);
     setHoldError("");
 
     try {
-      const seatIds = Array.from(selectedIds);
+      const seatIds = Array.from(selectedIds).sort();
+      const checkout = readCheckoutSession();
+      const raw = sessionStorage.getItem(HOLD_ATTEMPT_KEY);
+      const pending = raw ? JSON.parse(raw) as HoldAttempt : null;
+      let previous = pending?.user_id === session.user.user_id ? pending : checkout;
+      if (checkout?.attempted && (checkout.show_id !== showId || !sameSeats(checkout.seat_ids, seatIds))) {
+        throw new Error("Resolve your previous checkout confirmation before starting a different selection.");
+      }
+      if (checkout?.attempted && checkout.show_id === showId && sameSeats(checkout.seat_ids, seatIds)) {
+        router.push("/checkout");
+        return;
+      }
+      if (previous && (previous.show_id !== showId || !sameSeats(previous.seat_ids, seatIds))) {
+        const release = await fetch(`/api/shows/${previous.show_id}/holds/${previous.hold_token}`, {
+          method: "DELETE", headers: { Authorization: `Bearer ${session.accessToken}` }, signal: AbortSignal.timeout(15_000),
+        });
+        if (!release.ok) throw new Error("Could not release the previous hold. Retry before changing seats.");
+        sessionStorage.removeItem(HOLD_ATTEMPT_KEY);
+        if (checkout?.hold_token === previous.hold_token) sessionStorage.removeItem(CHECKOUT_KEY);
+        previous = null;
+      }
+      const attempt: HoldAttempt = { show_id: showId, seat_ids: seatIds,
+        hold_token: previous?.hold_token ?? crypto.randomUUID(), user_id: session.user.user_id };
+      // Persist before the request; a lost response must not generate a new token.
+      sessionStorage.setItem(HOLD_ATTEMPT_KEY, JSON.stringify(attempt));
       const res = await fetch(`/api/shows/${showId}/holds`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.accessToken}`,
         },
-        body: JSON.stringify({ seat_ids: seatIds }),
+        body: JSON.stringify({ seat_ids: seatIds, hold_token: attempt.hold_token }),
+        signal: AbortSignal.timeout(15_000),
       });
 
       const data = await res.json().catch(() => ({}));
@@ -388,8 +443,10 @@ export function SeatLayoutPage({ showId: propShowId }: { showId?: string }) {
 
       // Clean navigation to checkout without calculated URL amount or seat query params
       router.push("/checkout");
-    } catch {
-      setHoldError("Network error while reserving seats. Please try again.");
+    } catch (err) {
+      setHoldError(err instanceof Error ? err.message : "Could not reserve seats. Retry uses the same hold token.");
+    } finally {
+      holding.current = false;
       setIsHolding(false);
     }
   };

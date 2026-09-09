@@ -1,7 +1,7 @@
 import type { PoolClient } from "pg";
 export async function lockShow(client: PoolClient, id: string) {
-  const result = await client.query<{ screen_id: string; start_time: Date }>(
-    "SELECT screen_id, start_time FROM shows WHERE show_id = $1 FOR UPDATE", [id]);
+  const result = await client.query<{ screen_id: string; start_time: Date; base_price: string }>(
+    "SELECT screen_id, start_time, base_price::text FROM shows WHERE show_id = $1 FOR UPDATE", [id]);
   return result.rows[0];
 }
 export async function tokenWasBooked(client: PoolClient, token: string) {

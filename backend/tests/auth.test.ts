@@ -117,6 +117,38 @@ test("OTP auth end-to-end flow", async (t) => {
       body: JSON.stringify({ refresh_token: refreshed.refresh_token }),
     });
     assert.equal(oldRefreshRes.status, 401);
+
+    await t.test("event duration and concurrent show creation remain consistent", async () => {
+      const events = await import("../src/services/events.service.js");
+      const shows = await import("../src/services/shows.service.js");
+      const eventId = randomUUID(), venueId = randomUUID(), screenId = randomUUID();
+      try {
+        await pool.query("INSERT INTO events(event_id,type,title,duration) VALUES ($1,'movie','Concurrency test',90)", [eventId]);
+        await pool.query("INSERT INTO venues(venue_id,name,address) VALUES ($1,'Test venue','Test address')", [venueId]);
+        await pool.query("INSERT INTO screens(screen_id,venue_id,name) VALUES ($1,$2,'Test screen')", [screenId, venueId]);
+        await pool.query('INSERT INTO seats(seat_id,screen_id,"row",number) VALUES ($1,$2,\'A\',1)', [randomUUID(), screenId]);
+        const [update, creation] = await Promise.allSettled([
+          events.update(eventId, { duration: 120 }),
+          shows.adminCreate({ event_id: eventId, screen_id: screenId,
+            start_time: new Date(Date.now() + 86400000).toISOString(), base_price: "100.00" }),
+        ]);
+        assert.equal(creation.status, "fulfilled");
+        if (update.status === "rejected") assert.equal(update.reason.code, "EVENT_DURATION_LOCKED");
+        const actual = await pool.query(
+          "SELECT e.duration, EXTRACT(EPOCH FROM(s.end_time-s.start_time))/60 AS scheduled_duration FROM events e JOIN shows s USING(event_id) WHERE event_id=$1", [eventId]);
+        assert.equal(Number(actual.rows[0].scheduled_duration), actual.rows[0].duration);
+        await assert.rejects(events.update(eventId, { duration: 150 }), { code: "EVENT_DURATION_LOCKED" });
+        if (creation.status === "fulfilled") {
+          await assert.rejects(shows.adminUpdate(creation.value.show_id, { start_time: "2020-01-01T00:00:00Z" }), { status: 400 });
+        }
+      } finally {
+        await pool.query("DELETE FROM shows WHERE event_id=$1", [eventId]);
+        await pool.query("DELETE FROM seats WHERE screen_id=$1", [screenId]);
+        await pool.query("DELETE FROM screens WHERE screen_id=$1", [screenId]);
+        await pool.query("DELETE FROM venues WHERE venue_id=$1", [venueId]);
+        await pool.query("DELETE FROM events WHERE event_id=$1", [eventId]);
+      }
+    });
   } finally {
     await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
   }
