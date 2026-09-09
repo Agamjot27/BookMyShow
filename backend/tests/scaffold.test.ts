@@ -24,7 +24,7 @@ test("scaffold routes enforce authentication and admin authorization", async () 
   });
   const headers = (value: string) => ({ Authorization: `Bearer ${value}` });
   try {
-    assert.equal((await fetch(`${base}/events`)).status, 501);
+    assert.equal((await fetch(`${base}/shows/00000000-0000-4000-8000-000000000001`)).status, 501);
     assert.equal((await fetch(`${base}/bookings`)).status, 401);
     assert.equal((await fetch(`${base}/admin/venues`)).status, 401);
     assert.equal((await fetch(`${base}/admin/venues`, { headers: headers(token("user")) })).status, 403);
