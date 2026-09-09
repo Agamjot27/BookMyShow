@@ -181,6 +181,7 @@ export function SeatLayoutPage({ showId: propShowId }: { showId?: string }) {
   // State
   const [show, setShow] = useState<ShowDetails | null>(null);
   const [seats, setSeats] = useState<BackendSeat[]>([]);
+  const [layoutSeatsPerRow, setLayoutSeatsPerRow] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
@@ -193,104 +194,216 @@ export function SeatLayoutPage({ showId: propShowId }: { showId?: string }) {
   const holding = useRef(false);
   const loadVersion = useRef(0);
 
-  // Load show details and seats map
-  const loadShowData = useCallback(async () => {
+  // Tracks whether a background poll fetch is in-flight; prevents overlapping requests.
+  const polling = useRef(false);
+
+  // Load show details and seats map.
+  // isInitial=true → show full loading state; false → silent background refresh.
+  const loadShowData = useCallback(async (isInitial = false) => {
     if (!showId) return;
     const version = ++loadVersion.current;
+
+    // For background refreshes, skip if another request is still running.
+    if (!isInitial && polling.current) return;
+    if (!isInitial) polling.current = true;
+
     try {
-      setLoading(true);
-      setLoadError("");
+      if (isInitial) {
+        setLoading(true);
+        setLoadError("");
+      }
 
       const headers: Record<string, string> = {};
       if (session?.accessToken) {
         headers["Authorization"] = `Bearer ${session.accessToken}`;
       }
 
-      // Fetch show info and seat map in parallel
-      const [showRes, seatsRes] = await Promise.all([
-        fetch(`/api/shows/${showId}`, { cache: "no-store" }),
-        fetch(`/api/shows/${showId}/seats`, { headers, cache: "no-store" }),
-      ]);
+      // On initial load fetch show info + seats together.
+      // On background polls only re-fetch seats (show metadata is static).
+      const fetchPairs: Promise<Response>[] = isInitial
+        ? [
+            fetch(`/api/shows/${showId}`, { cache: "no-store" }),
+            fetch(`/api/shows/${showId}/seats`, { headers, cache: "no-store" }),
+          ]
+        : [
+            // For polls reuse the cached show response to save a round-trip.
+            Promise.resolve(new Response(null, { status: 200 })),
+            fetch(`/api/shows/${showId}/seats`, { headers, cache: "no-store" }),
+          ];
 
-      if (!showRes.ok) {
-        if (showRes.status === 404) throw new Error("Show not found or no longer active.");
-        throw new Error("Could not load show information.");
-      }
+      const [showRes, seatsRes] = await Promise.all(fetchPairs);
 
-      if (!seatsRes.ok) {
-        if (seatsRes.status === 404) throw new Error("Seat layout not found for this show.");
-        throw new Error("Could not load seat layout.");
-      }
-
-      const showData = (await showRes.json()) as ShowDetails;
-      const seatsData = (await seatsRes.json()) as { seats: BackendSeat[] };
-
+      // Discard stale response if a newer version was requested.
       if (version !== loadVersion.current) return;
-      setShow(showData);
-      setSeats(seatsData.seats || []);
-      if (session) {
-        const checkout = readCheckoutSession();
-        const raw = sessionStorage.getItem(HOLD_ATTEMPT_KEY);
-        const pending = raw ? JSON.parse(raw) as HoldAttempt : null;
-        const previous = pending?.user_id === session.user.user_id && pending.show_id === showId ? pending
-          : checkout?.show_id === showId ? checkout : null;
-        if (previous) {
-          const response = await fetch(`/api/shows/${showId}/holds/${previous.hold_token}`, { headers, cache: "no-store" });
-          if (version !== loadVersion.current) return;
-          if (response.ok) {
-            const hold = await response.json();
-            sessionStorage.setItem(HOLD_ATTEMPT_KEY, JSON.stringify({ ...hold, user_id: session.user.user_id }));
-            setSelectedIds(new Set(hold.seat_ids));
-            setMaxSeats(hold.seat_ids.length);
-            setShowModal(false);
+
+      if (isInitial) {
+        if (!showRes.ok) {
+          if (showRes.status === 404) throw new Error("Show not found or no longer active.");
+          throw new Error("Could not load show information.");
+        }
+        if (!seatsRes.ok) {
+          if (seatsRes.status === 404) throw new Error("Seat layout not found for this show.");
+          throw new Error("Could not load seat layout.");
+        }
+        const showData = (await showRes.json()) as ShowDetails;
+        const seatsData = (await seatsRes.json()) as { seats: BackendSeat[]; layout_json?: { seats_per_row?: number } };
+        if (version !== loadVersion.current) return;
+        setShow(showData);
+        setSeats(seatsData.seats || []);
+        setLayoutSeatsPerRow(seatsData.layout_json?.seats_per_row ?? 0);
+
+        // Restore previous hold on initial load only.
+        if (session) {
+          const checkout = readCheckoutSession();
+          const raw = sessionStorage.getItem(HOLD_ATTEMPT_KEY);
+          const pending = raw ? JSON.parse(raw) as HoldAttempt : null;
+          const previous = pending?.user_id === session.user.user_id && pending.show_id === showId ? pending
+            : checkout?.show_id === showId ? checkout : null;
+          if (previous) {
+            const response = await fetch(`/api/shows/${showId}/holds/${previous.hold_token}`, { headers, cache: "no-store" });
+            if (version !== loadVersion.current) return;
+            if (response.ok) {
+              const hold = await response.json();
+              sessionStorage.setItem(HOLD_ATTEMPT_KEY, JSON.stringify({ ...hold, user_id: session.user.user_id }));
+              setSelectedIds(new Set(hold.seat_ids));
+              setMaxSeats(hold.seat_ids.length);
+              setShowModal(false);
+            }
           }
         }
-      }
 
-
-      // If any currently selected seats are no longer available, remove them
-      setSelectedIds((prev) => {
-        if (prev.size === 0) return prev;
-        const availableSeatIds = new Set(
-          (seatsData.seats || [])
+        // Reconcile selection on initial load.
+        setSelectedIds((prev) => {
+          if (prev.size === 0) return prev;
+          const ok = new Set((seatsData.seats || [])
             .filter((s) => s.status === "available" || s.status === "held_by_me")
-            .map((s) => s.seat_id),
-        );
-        const next = new Set<string>();
-        prev.forEach((id) => {
-          if (availableSeatIds.has(id)) next.add(id);
+            .map((s) => s.seat_id));
+          const next = new Set<string>();
+          prev.forEach((id) => { if (ok.has(id)) next.add(id); });
+          return next.size === prev.size ? prev : next;
         });
-        return next;
-      });
+      } else {
+        // Background poll: only update seat statuses; never replace show metadata.
+        if (!seatsRes.ok) return; // silently ignore transient poll errors
+        const seatsData = (await seatsRes.json()) as { seats: BackendSeat[] };
+        if (version !== loadVersion.current) return;
+
+        setSeats((prev) => {
+          // Build a status+expires map from the fresh response.
+          const fresh = new Map(seatsData.seats.map((s) => [s.seat_id, s]));
+          // Only update if something actually changed (avoids re-render thrash).
+          let changed = false;
+          const next = prev.map((old) => {
+            const f = fresh.get(old.seat_id);
+            if (!f) return old;
+            if (f.status !== old.status || f.expires_at !== old.expires_at) {
+              changed = true;
+              return { ...old, status: f.status, expires_at: f.expires_at };
+            }
+            return old;
+          });
+          return changed ? next : prev;
+        });
+
+        // Reconcile selected seats: if a seat became booked or held_by_other,
+        // remove it from the user's selection (but never touch held_by_me).
+        setSelectedIds((prev) => {
+          if (prev.size === 0) return prev;
+          const stillSelectable = new Set(seatsData.seats
+            .filter((s) => s.status === "available" || s.status === "held_by_me")
+            .map((s) => s.seat_id));
+          const next = new Set<string>();
+          prev.forEach((id) => { if (stillSelectable.has(id)) next.add(id); });
+          // Return the same reference if nothing was removed (avoids re-render).
+          return next.size === prev.size ? prev : next;
+        });
+      }
     } catch (err) {
-      if (version === loadVersion.current) setLoadError(err instanceof Error ? err.message : "Failed to load show details.");
+      if (isInitial && version === loadVersion.current) {
+        setLoadError(err instanceof Error ? err.message : "Failed to load show details.");
+      }
+      // Background poll errors are silently swallowed.
     } finally {
-      if (version === loadVersion.current) setLoading(false);
+      if (isInitial && version === loadVersion.current) setLoading(false);
+      if (!isInitial) polling.current = false;
     }
-  }, [showId, session?.accessToken]);
+  }, [showId, session?.accessToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Initial load
   useEffect(() => {
     setSelectedIds(new Set());
-    loadShowData();
+    loadShowData(true);
     return () => { loadVersion.current++; };
   }, [loadShowData]);
 
-  // Dynamic layout tiers based on backend seat data
-  const tiers: TierInfo[] = useMemo(() => {
-    if (!seats || seats.length === 0) return [];
+  // Live polling: refresh seat availability every second while tab is visible.
+  // Pauses when the document is hidden; resumes + fires immediately on focus.
+  useEffect(() => {
+    if (!showId) return;
 
-    const rowMap = new Map<string, string>();
+    const poll = () => { if (!document.hidden) loadShowData(false); };
+
+    const interval = setInterval(poll, 1000);
+
+    const onVisibilityChange = () => { if (!document.hidden) loadShowData(false); };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [showId, loadShowData]);
+
+  // Derive per-row max seat number from layout_json metadata or the seat data itself.
+  // This lets us render gaps/aisles faithfully instead of packing seats consecutively.
+  const rowMaxSeat = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!seats.length) return map;
+    // Compute actual max seat number per row from the seat inventory.
     seats.forEach((s) => {
-      if (!rowMap.has(s.row)) {
-        rowMap.set(s.row, s.seat_type || "standard");
-      }
+      const current = map.get(s.row) ?? 0;
+      if (s.number > current) map.set(s.row, s.number);
     });
+    // If layout_json declares a seats_per_row, every row's width is at least that.
+    // This preserves gaps/aisles at the end of rows too.
+    if (layoutSeatsPerRow > 0) {
+      map.forEach((val, row) => map.set(row, Math.max(val, layoutSeatsPerRow)));
+    }
+    return map;
+  }, [seats, layoutSeatsPerRow]);
+
+  // Build tier groupings from seat data.
+  // Uses the per-seat seat_type (not just the first seat of each row) so mixed-type
+  // rows are handled correctly. Each unique seat_type becomes a pricing tier.
+  const tiers = useMemo((): TierInfo[] => {
+    if (!seats || seats.length === 0) return [];
 
     const basePrice = Number(show?.base_price ?? 250);
 
+    // Map each row to the dominant seat_type in that row (first unique type seen).
+    // For a correct implementation we use per-seat type: collect all types per row
+    // and pick the most common one as the row's display tier.
+    const rowTypeCount = new Map<string, Map<string, number>>();
+    seats.forEach((s) => {
+      const type = s.seat_type || "standard";
+      if (!rowTypeCount.has(s.row)) rowTypeCount.set(s.row, new Map());
+      const counts = rowTypeCount.get(s.row)!;
+      counts.set(type, (counts.get(type) ?? 0) + 1);
+    });
+
+    // For each row, pick the seat_type with the highest count.
+    const rowType = new Map<string, string>();
+    rowTypeCount.forEach((counts, row) => {
+      let best = "standard";
+      let bestCount = 0;
+      counts.forEach((count, type) => {
+        if (count > bestCount) { bestCount = count; best = type; }
+      });
+      rowType.set(row, best);
+    });
+
     const typeToRows = new Map<string, string[]>();
-    rowMap.forEach((type, row) => {
+    rowType.forEach((type, row) => {
       const list = typeToRows.get(type) || [];
       list.push(row);
       typeToRows.set(type, list);
@@ -304,24 +417,14 @@ export function SeatLayoutPage({ showId: propShowId }: { showId?: string }) {
       if (typeToRows.has(t)) {
         const rows = typeToRows.get(t)!;
         rows.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-        result.push({
-          tierKey: t,
-          label: t.toUpperCase(),
-          price: basePrice,
-          rows,
-        });
+        result.push({ tierKey: t, label: t.toUpperCase(), price: basePrice, rows });
       }
     });
 
     typeToRows.forEach((rows, t) => {
       if (!order.includes(t)) {
         rows.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-        result.push({
-          tierKey: t,
-          label: t.toUpperCase(),
-          price: basePrice,
-          rows,
-        });
+        result.push({ tierKey: t, label: t.toUpperCase(), price: basePrice, rows });
       }
     });
 
@@ -429,7 +532,7 @@ export function SeatLayoutPage({ showId: propShowId }: { showId?: string }) {
         }
         setHoldError(msg);
         // Refresh seat availability so taken seats reflect accurately
-        await loadShowData();
+        await loadShowData(true);
         setIsHolding(false);
         return;
       }
@@ -598,6 +701,9 @@ export function SeatLayoutPage({ showId: propShowId }: { showId?: string }) {
             {tier.rows.map((row) => {
               const rowSeats = seats.filter((s) => s.row === row);
               rowSeats.sort((a, b) => a.number - b.number);
+              // Build a position map so gaps between seat numbers render as spacers.
+              const bySeatNum = new Map(rowSeats.map((s) => [s.number, s]));
+              const maxNum = rowMaxSeat.get(row) ?? (rowSeats[rowSeats.length - 1]?.number ?? 0);
 
               return (
                 <div key={row} className={styles.seatRow}>
@@ -605,7 +711,22 @@ export function SeatLayoutPage({ showId: propShowId }: { showId?: string }) {
                     {row}
                   </span>
                   <div className={styles.seatGroup}>
-                    {rowSeats.map((seat) => {
+                    {Array.from({ length: maxNum }, (_, i) => {
+                      const num = i + 1;
+                      const seat = bySeatNum.get(num);
+
+                      // Gap spacer — no bookable seat at this position.
+                      if (!seat) {
+                        return (
+                          <div
+                            key={`gap-${num}`}
+                            className={styles.seat}
+                            style={{ visibility: "hidden", pointerEvents: "none" }}
+                            aria-hidden="true"
+                          />
+                        );
+                      }
+
                       const isSelected = selectedIds.has(seat.seat_id);
                       let seatClass = styles.seat_available;
 
