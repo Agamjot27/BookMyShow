@@ -7,6 +7,34 @@ A full-stack ticket booking platform: browse movies, standup shows, and concerts
 
 ---
 
+## Screenshots
+
+### Movies home page
+![Movies home page](docs/screenshots/01-movies-home.png)
+
+### Movie detail
+![Movie detail](docs/screenshots/02-movie-detail.png)
+
+### Showtimes & date picker
+![Showtimes](docs/screenshots/03-showtimes.png)
+
+### Seat selection map
+![Seat map](docs/screenshots/04-seat-map.png)
+
+### Checkout / payment
+![Checkout payment](docs/screenshots/05-payment.png)
+
+### Booking confirmed
+![Booking confirmed](docs/screenshots/06-booking-confirmed.png)
+
+### Admin dashboard (analytics)
+![Admin dashboard](docs/screenshots/07-admin-dashboard.png)
+
+### Admin event management
+![Admin events](docs/screenshots/08-admin-events.png)
+
+---
+
 ## Stack
 
 | Layer | Technology |
