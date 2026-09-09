@@ -11,6 +11,18 @@ export type Show = {
 };
 export type ShowListOptions = { page: number; page_size: number };
 export type ShowList = ShowListOptions & { items: Show[]; total: number };
+
+export type CreateShowInput = {
+  event_id: string;
+  screen_id: string;
+  start_time: string; // ISO-8601
+  base_price: string; // numeric string e.g. "250.00"
+};
+
+export type UpdateShowInput = {
+  start_time?: string;
+  base_price?: string;
+};
 export type SeatLayout = {
   rows: number;
   seats_per_row: number;

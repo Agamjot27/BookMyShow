@@ -1,5 +1,7 @@
+import { randomUUID } from "node:crypto";
+import type { PoolClient } from "pg";
 import { pool } from "../client.js";
-import type { Show, ShowList, ShowListOptions, ShowSeatMap } from "../../src/types/show.js";
+import type { Show, ShowList, ShowListOptions, ShowSeatMap, CreateShowInput, UpdateShowInput } from "../../src/types/show.js";
 
 // Cast numeric prices before JSON construction so money stays a decimal string.
 const showSelect = `SELECT s.show_id, s.event_id, s.screen_id, s.start_time, s.end_time,
@@ -9,8 +11,8 @@ const showSelect = `SELECT s.show_id, s.event_id, s.screen_id, s.start_time, s.e
   JOIN screens sc ON sc.screen_id = s.screen_id
   JOIN venues v ON v.venue_id = sc.venue_id`;
 
-export async function findShowById(id: string): Promise<Show | undefined> {
-  const result = await pool.query<{ show: Show }>(
+export async function findShowById(id: string, client: Pick<PoolClient, "query"> = pool): Promise<Show | undefined> {
+  const result = await client.query<{ show: Show }>(
     `SELECT row_to_json(detail) AS show FROM (${showSelect} WHERE s.show_id = $1) detail`, [id],
   );
   return result.rows[0]?.show;
@@ -31,6 +33,125 @@ export async function listUpcomingShows(eventId: string, options: ShowListOption
   );
   return result.rows[0] ? { ...result.rows[0], ...options } : undefined;
 }
+
+// ── Admin list (all shows, with optional filters) ─────────────────────────
+
+export async function listAllShows(
+  options: ShowListOptions & { event_id?: string; screen_id?: string },
+): Promise<ShowList> {
+  const conditions: string[] = [];
+  const params: unknown[]   = [];
+
+  if (options.event_id)  { params.push(options.event_id);  conditions.push(`s.event_id = $${params.length}`); }
+  if (options.screen_id) { params.push(options.screen_id); conditions.push(`s.screen_id = $${params.length}`); }
+
+  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+
+  params.push(options.page_size);
+  const limitParam = params.length;
+  params.push((options.page - 1) * options.page_size);
+  const offsetParam = params.length;
+
+  const result = await pool.query<{ items: Show[]; total: number }>(
+    `WITH filtered AS (
+       ${showSelect} ${where}
+     ), paged AS (
+       SELECT * FROM filtered ORDER BY start_time DESC, show_id LIMIT $${limitParam} OFFSET $${offsetParam}
+     )
+     SELECT (SELECT count(*)::integer FROM filtered) AS total,
+       COALESCE((SELECT json_agg(p ORDER BY p.start_time DESC, p.show_id) FROM paged p), '[]'::json) AS items`,
+    params,
+  );
+  return { ...result.rows[0], page: options.page, page_size: options.page_size };
+}
+
+// ── Overlap detection (runs INSIDE a transaction with a screen-level lock) ─
+
+/**
+ * Acquire an advisory lock keyed to the screen, then check whether the given
+ * [start, end) interval overlaps any existing show on that screen.
+ * Excludes `excludeShowId` so updates can ignore the show being edited.
+ *
+ * Must be called inside an open transaction (client.query("BEGIN") already ran).
+ */
+export async function checkOverlapLocked(
+  client: PoolClient,
+  screenId: string,
+  startTime: Date,
+  endTime: Date,
+  excludeShowId?: string,
+): Promise<boolean> {
+  // Advisory lock on the screen UUID (converted to int8 via hashtext) prevents
+  // two concurrent transactions from both passing the overlap check simultaneously.
+  await client.query(
+    "SELECT pg_advisory_xact_lock(hashtext($1))", [screenId],
+  );
+
+  const result = await client.query<{ overlaps: boolean }>(
+    `SELECT EXISTS (
+       SELECT 1 FROM shows
+       WHERE screen_id = $1
+         AND show_id <> COALESCE($2, '00000000-0000-0000-0000-000000000000'::uuid)
+         AND start_time < $4   -- proposed end is after existing start
+         AND end_time   > $3   -- existing end is after proposed start
+     ) AS overlaps`,
+    [screenId, excludeShowId ?? null, startTime.toISOString(), endTime.toISOString()],
+  );
+  return result.rows[0].overlaps;
+}
+
+// ── Admin CRUD ────────────────────────────────────────────────────────────
+
+export async function insertShow(client: PoolClient, input: CreateShowInput & { end_time: Date }): Promise<Show> {
+  const id = randomUUID();
+  await client.query(
+    `INSERT INTO shows (show_id, event_id, screen_id, start_time, end_time, base_price)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [id, input.event_id, input.screen_id, input.start_time, input.end_time.toISOString(), input.base_price],
+  );
+  const show = await findShowById(id, client);
+  if (!show) throw new Error("Show insert failed");
+  return show;
+}
+
+export async function updateShow(
+  client: PoolClient,
+  id: string,
+  patch: { start_time?: Date; end_time?: Date; base_price?: string },
+): Promise<Show | undefined> {
+  const sets: string[]  = [];
+  const values: unknown[] = [id];
+  if (patch.start_time !== undefined) { values.push(patch.start_time.toISOString()); sets.push(`start_time = $${values.length}`); }
+  if (patch.end_time   !== undefined) { values.push(patch.end_time.toISOString());   sets.push(`end_time = $${values.length}`); }
+  if (patch.base_price !== undefined) { values.push(patch.base_price);               sets.push(`base_price = $${values.length}`); }
+  if (sets.length === 0) return findShowById(id, client);
+  await client.query(`UPDATE shows SET ${sets.join(", ")} WHERE show_id = $1`, values);
+  return findShowById(id, client);
+}
+
+export async function deleteShow(
+  id: string,
+): Promise<"deleted" | "not_found" | "has_bookings"> {
+  const dep = await pool.query(
+    "SELECT 1 FROM bookings WHERE show_id = $1 AND status = 'confirmed' LIMIT 1", [id],
+  );
+  if (dep.rowCount) return "has_bookings";
+  const result = await pool.query("DELETE FROM shows WHERE show_id = $1", [id]);
+  return result.rowCount ? "deleted" : "not_found";
+}
+
+/** Returns true if the show has at least one confirmed booking. */
+export async function showHasBookings(
+  id: string,
+  client: Pick<PoolClient, "query"> = pool,
+): Promise<boolean> {
+  const result = await client.query(
+    "SELECT 1 FROM bookings WHERE show_id = $1 AND status = 'confirmed' LIMIT 1", [id],
+  );
+  return Boolean(result.rowCount);
+}
+
+// ── Seat map (public) ──────────────────────────────────────────────────────
 
 export async function findShowSeatMap(id: string): Promise<ShowSeatMap | undefined> {
   // One statement gives layout, seat inventory and confirmed bookings the same

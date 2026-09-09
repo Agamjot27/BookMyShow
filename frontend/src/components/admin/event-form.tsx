@@ -9,9 +9,11 @@ import styles from "./admin.module.css";
 
 interface Props {
   event?: AdminEvent; // present → edit mode
+  /** When editing, whether this event already has scheduled shows (locks duration). */
+  hasShows?: boolean;
 }
 
-export function EventForm({ event }: Props) {
+export function EventForm({ event, hasShows = false }: Props) {
   const router = useRouter();
   const { session } = useAuth();
   const isEdit = Boolean(event);
@@ -29,8 +31,11 @@ export function EventForm({ event }: Props) {
   const validate = () => {
     const errs: Record<string, string> = {};
     if (!title.trim()) errs.title = "Title is required";
-    const dur = parseInt(duration, 10);
-    if (!duration || isNaN(dur) || dur <= 0) errs.duration = "Duration must be a positive integer (minutes)";
+    // Only validate duration when it's editable (not locked by shows).
+    if (!isEdit || !hasShows) {
+      const dur = parseInt(duration, 10);
+      if (!duration || isNaN(dur) || dur <= 0) errs.duration = "Duration must be a positive integer (minutes)";
+    }
     if (posterUrl.trim()) {
       try {
         const u = new URL(posterUrl.trim());
@@ -48,10 +53,15 @@ export function EventForm({ event }: Props) {
     if (!session || !validate()) return;
     setBusy(true);
     setError("");
+
+    // Don't include duration in the PATCH when shows exist — field is disabled
+    // and the backend would reject it anyway. Build the payload conditionally.
+    const durationValue = (!isEdit || !hasShows) ? parseInt(duration, 10) : undefined;
+
     const payload = {
       type,
       title: title.trim(),
-      duration: parseInt(duration, 10),
+      ...(durationValue !== undefined ? { duration: durationValue } : {}),
       description: description.trim(),
       poster_url: posterUrl.trim() || null,
     };
@@ -60,7 +70,10 @@ export function EventForm({ event }: Props) {
         await eventsApi.update(event.event_id, payload, session.accessToken);
         router.push(`/admin/events/${event.event_id}`);
       } else {
-        const created = await eventsApi.create(payload, session.accessToken);
+        const created = await eventsApi.create(
+          { type, title: title.trim(), duration: parseInt(duration, 10), description: description.trim(), poster_url: posterUrl.trim() || null },
+          session.accessToken,
+        );
         router.push(`/admin/events/${created.event_id}`);
       }
     } catch (e: unknown) {
@@ -122,7 +135,9 @@ export function EventForm({ event }: Props) {
 
           {/* Duration */}
           <div className={styles.formField}>
-            <label htmlFor="event-duration" className={styles.formLabel}>Duration (minutes) *</label>
+            <label htmlFor="event-duration" className={styles.formLabel}>
+              Duration (minutes) {(!isEdit || !hasShows) ? "*" : ""}
+            </label>
             <input
               id="event-duration"
               type="number"
@@ -133,7 +148,14 @@ export function EventForm({ event }: Props) {
               onChange={(e) => setDuration(e.target.value)}
               placeholder="e.g. 152"
               style={{ maxWidth: 180 }}
+              disabled={isEdit && hasShows}
+              aria-describedby={isEdit && hasShows ? "duration-locked-hint" : undefined}
             />
+            {isEdit && hasShows && (
+              <span id="duration-locked-hint" className={styles.formHint} style={{ color: "#b45309" }}>
+                Duration is locked — this event has scheduled shows. Remove all shows first to change it.
+              </span>
+            )}
             {fieldErrors.duration && <span className={styles.formError}>{fieldErrors.duration}</span>}
           </div>
 

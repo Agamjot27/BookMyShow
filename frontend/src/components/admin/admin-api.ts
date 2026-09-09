@@ -118,6 +118,14 @@ export const eventsApi = {
   get: (id: string, token: string) =>
     adminFetch<AdminEvent>(`/api/admin/events/${id}`, token),
 
+  /** Returns true if the event has at least one show scheduled. */
+  hasShows: async (id: string, token: string): Promise<boolean> => {
+    const d = await adminFetch<{ items: unknown[]; total: number }>(
+      `/api/admin/shows?event_id=${encodeURIComponent(id)}&page=1&page_size=1`, token,
+    );
+    return d.total > 0;
+  },
+
   create: (
     body: { type: EventType; title: string; duration: number; description: string; poster_url: string | null },
     token: string,
@@ -157,4 +165,49 @@ export const layoutApi = {
       method: "PUT",
       body: JSON.stringify({ seats }),
     }).then((d) => d.seats),
+};
+
+// ── Shows ──────────────────────────────────────────────────────────────────
+
+export interface AdminShow {
+  show_id: string;
+  event_id: string;
+  screen_id: string;
+  start_time: string;
+  end_time: string;
+  base_price: string;
+  event_title: string;
+  screen_name: string;
+  venue: { venue_id: string; name: string; address: string };
+}
+
+export const showsApi = {
+  list: (token: string, params: { event_id?: string; screen_id?: string; page?: number; page_size?: number } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.event_id)  qs.set("event_id",  params.event_id);
+    if (params.screen_id) qs.set("screen_id", params.screen_id);
+    qs.set("page",      String(params.page      ?? 1));
+    qs.set("page_size", String(params.page_size ?? 100));
+    return adminFetch<{ items: AdminShow[]; total: number; page: number; page_size: number }>(
+      `/api/admin/shows?${qs}`, token,
+    );
+  },
+
+  get: (id: string, token: string) =>
+    adminFetch<AdminShow>(`/api/admin/shows/${id}`, token),
+
+  create: (body: { event_id: string; screen_id: string; start_time: string; base_price: string }, token: string) =>
+    adminFetch<AdminShow>("/api/admin/shows", token, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  update: (id: string, body: { start_time?: string; base_price?: string }, token: string) =>
+    adminFetch<AdminShow>(`/api/admin/shows/${id}`, token, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+
+  delete: (id: string, token: string) =>
+    adminFetch<undefined>(`/api/admin/shows/${id}`, token, { method: "DELETE" }),
 };

@@ -14,6 +14,19 @@ export async function getById(id: string) {
   return event;
 }
 export async function update(id: string, input: UpdateEventInput) {
+  // duration drives show end_time. Once shows are scheduled, changing it would
+  // make existing end_time values stale and break overlap detection.
+  if (input.duration !== undefined) {
+    const hasSched = await repository.eventHasShows(id);
+    if (hasSched) {
+      throw new ApiError(
+        409,
+        "EVENT_DURATION_LOCKED",
+        "This event has scheduled shows. Duration cannot be changed once shows exist " +
+        "because it determines each show's end time. Remove all shows first, or create a new event.",
+      );
+    }
+  }
   const event = await repository.updateEvent(id, input);
   if (!event) throw new ApiError(404, "EVENT_NOT_FOUND", "Event not found");
   return event;

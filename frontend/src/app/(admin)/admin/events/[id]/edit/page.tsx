@@ -8,17 +8,21 @@ import styles from "@/components/admin/admin.module.css";
 export default function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { session } = useAuth();
-  const [event, setEvent] = useState<AdminEvent | null>(null);
-  const [error, setError] = useState("");
+  const [event, setEvent]       = useState<AdminEvent | null>(null);
+  const [hasShows, setHasShows] = useState(false);
+  const [error, setError]       = useState("");
 
   useEffect(() => {
     if (!session) return;
-    eventsApi.get(id, session.accessToken)
-      .then(setEvent)
+    Promise.all([
+      eventsApi.get(id, session.accessToken),
+      eventsApi.hasShows(id, session.accessToken),
+    ])
+      .then(([ev, hs]) => { setEvent(ev); setHasShows(hs); })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : "Failed to load event"));
   }, [session, id]);
 
   if (error) return <div className={styles.page}><div className={styles.alertError}>{error}</div></div>;
   if (!event) return <div className={styles.page}><div className={styles.loading}>Loading…</div></div>;
-  return <EventForm event={event} />;
+  return <EventForm event={event} hasShows={hasShows} />;
 }

@@ -1,3 +1,3 @@
 "use client";
-import { PlaceholderPage } from "@/components/placeholder-page";
-export default function Page() { return <PlaceholderPage title="Create shows" />; }
+import { ShowForm } from "@/components/admin/show-form";
+export default function Page() { return <ShowForm />; }

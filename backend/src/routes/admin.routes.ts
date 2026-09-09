@@ -2,7 +2,7 @@ import { Router } from "express";
 import * as venuesCtrl  from "../controllers/venues.controller.js";
 import * as screensCtrl from "../controllers/screens.controller.js";
 import * as events from "../controllers/events.controller.js";
-import { handler as shows } from "../controllers/shows.controller.js";
+import * as showsCtrl from "../controllers/shows.controller.js";
 import { handler as bookings } from "../controllers/bookings.controller.js";
 import { handler as analytics } from "../controllers/analytics.controller.js";
 
@@ -34,11 +34,11 @@ adminRouter.patch("/events/:id",  events.update);
 adminRouter.delete("/events/:id", events.remove);
 
 // ── Shows ────────────────────────────────────────────────────────────────────
-adminRouter.get("/shows",          shows);
-adminRouter.post("/shows",         shows);
-adminRouter.get("/shows/:id",      shows);
-adminRouter.patch("/shows/:id",    shows);
-adminRouter.delete("/shows/:id",   shows);
+adminRouter.get("/shows",          showsCtrl.adminList);
+adminRouter.post("/shows",         showsCtrl.adminCreate);
+adminRouter.get("/shows/:id",      showsCtrl.adminGetOne);
+adminRouter.patch("/shows/:id",    showsCtrl.adminUpdate);
+adminRouter.delete("/shows/:id",   showsCtrl.adminDelete);
 
 // ── Bookings (read-only admin view, not yet implemented) ─────────────────────
 adminRouter.get("/bookings",       bookings);
