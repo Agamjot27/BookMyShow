@@ -33,7 +33,7 @@ const dateSchedule = [
   { day: "TUE", date: "15", month: "SEP" },
 ];
 
-export function MovieDetailPage({ id }: { id: string }) {
+export function MovieDetailPage({ id, location }: { id: string; location: string }) {
   // Find movie by id, or default to Spider-Man
   const movie: Movie =
     sampleMovies.find((m) => m.id === id) || sampleMovies[0];
@@ -395,7 +395,7 @@ export function MovieDetailPage({ id }: { id: string }) {
           {recommendations.map((rec) => (
             <Link
               key={rec.id}
-              href={`/movies/${rec.id}`}
+              href={`/movies/${location}/${rec.id}`}
               className={styles.recCard}
             >
               <div

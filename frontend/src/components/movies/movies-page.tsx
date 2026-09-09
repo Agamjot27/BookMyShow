@@ -22,6 +22,7 @@ import {
   type MovieCategory,
   type HeroBanner,
 } from "./movies-data";
+import { useLocation } from "@/components/location-context";
 import styles from "./movies.module.css";
 
 /* -------------------------------------------------------------------------- */
@@ -140,13 +141,13 @@ function BannerCarousel({ banners }: { banners: HeroBanner[] }) {
 /* Movie Card Component                                                       */
 /* -------------------------------------------------------------------------- */
 
-function MovieCardItem({ movie }: { movie: Movie }) {
+function MovieCardItem({ movie, locationSlug }: { movie: Movie; locationSlug: string }) {
   const [notified, setNotified] = useState(false);
 
   return (
     <article className={styles.movieCard}>
       <Link
-        href={`/movies/${movie.id}`}
+        href={`/movies/${locationSlug}/${movie.id}`}
         className={styles.movieCardLink}
         aria-label={`View details and showtimes for ${movie.title}`}
       >
@@ -428,10 +429,10 @@ export function MoviesPage() {
   const [selectedLanguage, setSelectedLanguage] = useState<string>("");
   const [selectedGenre, setSelectedGenre] = useState<string>("");
   const [selectedFormat, setSelectedFormat] = useState<string>("");
+  const { slug: locationSlug } = useLocation();
 
   // Filter movies based on category and dropdown filters
   const displayedMovies = sampleMovies.filter((movie) => {
-    // If a specific category like 'Upcoming' is chosen, check; otherwise show all if 'Trending'
     const matchesCategory =
       activeCategory === "Trending" || movie.category === activeCategory;
     const matchesLanguage =
@@ -465,7 +466,7 @@ export function MoviesPage() {
         aria-label={`${activeCategory} Movies in Cinemas`}
       >
         {displayedMovies.map((movie) => (
-          <MovieCardItem key={movie.id} movie={movie} />
+          <MovieCardItem key={movie.id} movie={movie} locationSlug={locationSlug} />
         ))}
       </section>
     </main>
