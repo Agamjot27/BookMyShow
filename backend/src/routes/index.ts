@@ -4,8 +4,9 @@ import { requireRole } from "../middleware/require-role.js";
 import * as auth from "../controllers/auth.controller.js";
 import { authRateLimit } from "../middleware/auth-rate-limit.js";
 import * as events from "../controllers/events.controller.js";
-import { handler as shows } from "../controllers/shows.controller.js";
-import { handler as bookings } from "../controllers/bookings.controller.js";
+import * as holds from "../controllers/holds.controller.js";
+import * as shows from "../controllers/shows.controller.js";
+import * as bookings from "../controllers/bookings.controller.js";
 import { adminRouter } from "./admin.routes.js";
 
 export const apiRouter = Router();
@@ -23,18 +24,18 @@ apiRouter.get("/events",      events.listPublic);
 apiRouter.get("/events/:id",  events.getById);
 
 // ── Shows ──────────────────────────────────────────────────────────────────
-apiRouter.get("/events/:id/shows",              shows);
-apiRouter.get("/shows/:id",                     shows);
-apiRouter.get("/shows/:id/seats",               optionalAuth, shows);
-apiRouter.post("/shows/:id/seats/:seat_id/hold",authenticate, shows);
-apiRouter.post("/shows/:id/holds",              authenticate, shows);
-apiRouter.get("/shows/:id/holds/:hold_token",   authenticate, shows);
-apiRouter.delete("/shows/:id/holds/:hold_token",authenticate, shows);
+apiRouter.get("/events/:id/shows",              shows.listForEvent);
+apiRouter.get("/shows/:id",                     shows.getById);
+apiRouter.get("/shows/:id/seats",               optionalAuth, shows.getSeats);
+apiRouter.post("/shows/:id/seats/:seat_id/hold",authenticate, holds.createSingle);
+apiRouter.post("/shows/:id/holds",              authenticate, holds.create);
+apiRouter.get("/shows/:id/holds/:hold_token",   authenticate, holds.get);
+apiRouter.delete("/shows/:id/holds/:hold_token",authenticate, holds.release);
 
 // ── Bookings ───────────────────────────────────────────────────────────────
-apiRouter.post("/bookings/confirm", authenticate, bookings);
-apiRouter.get("/bookings",          authenticate, bookings);
-apiRouter.get("/bookings/:id",      authenticate, bookings);
+apiRouter.post("/bookings/confirm", authenticate, bookings.confirm);
+apiRouter.get("/bookings",          authenticate, bookings.handler);
+apiRouter.get("/bookings/:id",      authenticate, bookings.handler);
 
 // ── Admin ──────────────────────────────────────────────────────────────────
 apiRouter.use("/admin", authenticate, requireRole("admin"), adminRouter);

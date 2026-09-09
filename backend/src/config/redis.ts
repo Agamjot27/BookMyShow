@@ -138,6 +138,13 @@ class ResilientRedisClient {
     }
   }
 
+  // Inventory always requires shared Redis, even with local OTP fallback enabled.
+  async evalShared(script: string, keys: string[], args: string[]): Promise<unknown> {
+    if (this.useMemory || !this.realClient.isReady) throw this.unavailable();
+    try { return await this.realClient.eval(script, { keys, arguments: args }); }
+    catch { throw this.unavailable(); }
+  }
+
   async setOtp(key: string, value: string, options: { EX: number }): Promise<string | null> {
     return this.set(key, value, options);
   }

@@ -7,7 +7,7 @@ export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
     return;
   }
   const code = typeof error?.code === "string" ? error.code : "";
-  const unavailable = code.startsWith("08") || ["ECONNREFUSED", "ECONNRESET", "ENOTFOUND", "ETIMEDOUT", "57P01", "57P02", "57P03", "53300", "57014"].includes(code);
+  const unavailable = code.startsWith("08") || ["ECONNREFUSED", "ECONNRESET", "ENOTFOUND", "ETIMEDOUT", "57P01", "57P02", "57P03", "53300", "57014", "55P03"].includes(code);
   const status = error?.type === "entity.parse.failed" ? 400 : error?.type === "entity.too.large" ? 413 : unavailable ? 503 : 500;
   res.status(status).json({
     error: {
