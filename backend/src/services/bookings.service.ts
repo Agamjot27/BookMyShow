@@ -52,3 +52,13 @@ export async function confirm(userId: string, key: string, input: ConfirmationIn
   catch { console.warn("Confirmed booking hold cleanup deferred to Redis expiry"); }
   return result;
 }
+
+export async function listMine(userId: string) {
+  return repository.listForUser(userId);
+}
+
+export async function getOne(bookingId: string, userId: string) {
+  const ticket = await repository.ticketById(bookingId, userId);
+  if (!ticket) throw new ApiError(404, "BOOKING_NOT_FOUND", "Booking not found");
+  return ticket;
+}

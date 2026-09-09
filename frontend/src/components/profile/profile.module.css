@@ -506,3 +506,65 @@
   font-weight: 600;
   color: #222222;
 }
+
+/* ==========================================================================
+   ORDER HISTORY — live data additions
+   ========================================================================== */
+
+.orderCardClickable {
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, transform 0.1s ease;
+}
+
+.orderCardClickable:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.09);
+  transform: translateY(-1px);
+}
+
+.orderCardClickable:focus-visible {
+  outline: 2px solid #dc3155;
+  outline-offset: 2px;
+}
+
+.orderArrow {
+  color: #aaaaaa;
+  margin-top: 4px;
+}
+
+.statusBadge {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #f4f4f7;
+  color: #555555;
+}
+
+.statusBadgeConfirmed {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+.ordersEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 60px 24px;
+  color: #888888;
+  font-size: 14px;
+  text-align: center;
+}
+
+.ordersEmptyIcon {
+  color: #cccccc;
+}

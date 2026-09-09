@@ -1,0 +1,286 @@
+.page {
+  width: 100%;
+  background: #f5f5f7;
+  min-height: calc(100vh - 120px);
+  padding: 32px 24px 64px;
+  color: #222;
+  font-family: inherit;
+}
+
+.header {
+  max-width: 680px;
+  margin: 0 auto 28px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: #111;
+}
+
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid #e2e2e6;
+  background: #fff;
+  color: #333;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  flex-shrink: 0;
+}
+
+.backBtn:hover {
+  background: #f4f4f7;
+}
+
+.layout {
+  max-width: 680px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── Ticket Card ── */
+.ticketCard {
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid #e5e5e8;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+.ticketTop {
+  padding: 24px 24px 20px;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  background: linear-gradient(135deg, #d71935 0%, #a8132a 100%);
+  color: #fff;
+}
+
+.ticketPoster {
+  width: 54px;
+  height: 54px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.18);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.posterIcon {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.ticketTopInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.eventTitle {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.2;
+}
+
+.confirmedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4ade80;
+}
+
+/* ── Tear-line divider ── */
+.ticketDivider {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 1px;
+  margin: 0 -1px;
+}
+
+.dividerLine {
+  flex: 1;
+  border-top: 1px dashed #d4d4d8;
+  margin: 0 20px;
+}
+
+.dividerCircleLeft,
+.dividerCircleRight {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #f5f5f7;
+  border: 1px solid #e5e5e8;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.dividerCircleLeft { margin-left: -10px; }
+.dividerCircleRight { margin-right: -10px; }
+
+/* ── Details ── */
+.ticketDetails {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.detailItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.detailIcon {
+  color: #dc3155;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.detailLabel {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #71717a;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 3px;
+}
+
+.detailValue {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #111;
+}
+
+.detailSub {
+  display: block;
+  font-size: 12px;
+  color: #888;
+  margin-top: 2px;
+}
+
+/* ── Price section ── */
+.priceSection {
+  padding: 20px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.priceRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.priceRowTotal {
+  padding-top: 10px;
+  border-top: 1px solid #e5e5e8;
+}
+
+.priceLabel {
+  font-size: 13px;
+  color: #555;
+}
+
+.priceValue {
+  font-size: 14px;
+  font-weight: 600;
+  color: #222;
+}
+
+.priceTotalValue {
+  font-size: 20px;
+  font-weight: 800;
+  color: #111;
+}
+
+/* ── Meta card ── */
+.metaCard {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e5e5e8;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.metaRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  gap: 12px;
+}
+
+.metaLabel {
+  color: #71717a;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.metaValue {
+  color: #222;
+  font-weight: 600;
+  text-align: right;
+  word-break: break-all;
+}
+
+/* ── Secondary button ── */
+.secondaryBtn {
+  padding: 11px 24px;
+  border-radius: 8px;
+  border: 1px solid #e2e2e6;
+  background: #fff;
+  color: #333;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  align-self: flex-start;
+}
+
+.secondaryBtn:hover {
+  background: #f4f4f7;
+}
+
+/* ── States ── */
+.loadingState,
+.errorState {
+  max-width: 480px;
+  margin: 80px auto;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  color: #666;
+  font-size: 14px;
+}
+
+.errorIcon {
+  color: #dc3155;
+}

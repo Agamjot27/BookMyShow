@@ -34,8 +34,8 @@ apiRouter.delete("/shows/:id/holds/:hold_token",authenticate, holds.release);
 
 // ── Bookings ───────────────────────────────────────────────────────────────
 apiRouter.post("/bookings/confirm", authenticate, bookings.confirm);
-apiRouter.get("/bookings",          authenticate, bookings.handler);
-apiRouter.get("/bookings/:id",      authenticate, bookings.handler);
+apiRouter.get("/bookings",          authenticate, bookings.listMine);
+apiRouter.get("/bookings/:id",      authenticate, bookings.getOne);
 
 // ── Admin ──────────────────────────────────────────────────────────────────
 apiRouter.use("/admin", authenticate, requireRole("admin"), adminRouter);
