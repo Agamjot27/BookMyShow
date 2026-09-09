@@ -1,5 +1,3 @@
-BEGIN;
-
 -- Make password_hash nullable — OTP-only users have no password.
 ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
 
@@ -13,5 +11,3 @@ CREATE TABLE refresh_tokens (
   CONSTRAINT refresh_tokens_token_hash_key UNIQUE (token_hash)
 );
 CREATE INDEX refresh_tokens_user_idx ON refresh_tokens (user_id);
-
-COMMIT;

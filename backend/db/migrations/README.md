@@ -1,12 +1,6 @@
-# SQL migrations
+# SQL migrations and local seed
 
-Apply numbered `.up.sql` files once, in order, against an empty database.
-Each file owns its transaction. No migration tracking entity is added: the schema
-contains exactly the eight TRD entities. Reapplying this initial migration fails
-instead of silently masking schema drift. Do not mount both up and down files
-into PostgreSQL's automatic initialization directory.
-
-From repository root, the Node/pg commands use DATABASE_URL from the root `.env`:
+From the repository root:
 
 ```text
 npm run db:check --workspace backend
@@ -14,24 +8,26 @@ npm run db:migrate --workspace backend
 npm run db:seed --workspace backend
 ```
 
-The migration command applies the existing initial SQL file unchanged and refuses
-to run when public tables already exist. It does not automatically roll back or
-reset a database. Seed requires SEED_ADMIN_PASSWORD and SEED_USER_PASSWORD in
-the local environment. Re-running seed preserves matching accounts and refuses
-to overwrite accounts whose password or role differs.
+The runner serializes migrations with a PostgreSQL advisory lock. It owns the
+transaction for each `.up.sql` file: SQL and the `schema_migrations` insert commit
+or roll back together. Up files must not contain transaction-control statements
+(PL/pgSQL function BEGIN/END blocks are fine). Use the runner, not direct psql,
+so migration history is recorded. Existing down files are standalone, destructive
+manual rollbacks; they are never executed automatically and history must be
+reconciled explicitly if used.
 
-From repository root, after starting Compose (PowerShell):
+No initial migration is inferred from existing tables. An untracked nonempty
+public schema is rejected, including partially initialized databases. Inspect and
+reconcile its full schema and migration history before retrying. The runner never
+automatically baselines or resets it. Previously recorded history is trusted;
+this change does not retroactively certify an old inferred migration record.
 
-```powershell
-Get-Content -Raw backend/db/migrations/001_initial_schema.up.sql | docker compose exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
-```
-
-For an existing local PostgreSQL installation, use:
-`psql -v ON_ERROR_STOP=1 -d <connection-url> -f backend/db/migrations/001_initial_schema.up.sql`.
-
-The matching down migration drops all eight tables and their data. It is provided
-for deliberate local rollback only; no startup command executes it.
-
-The migration includes the screen-membership trigger required by TRD.md.
-Overlap checks, layout immutability, pricing, holds, and other service validations
-remain unimplemented. The migration creates no accounts; the separate seed command creates local auth accounts only.
+Seed requires local SEED_ADMIN_PASSWORD and SEED_USER_PASSWORD. Matching accounts
+are preserved; different credentials/roles cause failure. All demo writes share
+one transaction and an advisory lock. Existing seat IDs are preserved and screen
+geometry matches the seeded A–J / 1–10 grid. Shows use stable IDs and reuse the
+original schedule date instead of creating a new week on every invocation. Times
+are UTC: movies run on days 1–7, live events on days 8–11. A rerun does not refresh
+expired demo dates. Screen locks and overlap checks prevent new scheduling
+conflicts. Existing shows and bookings are never deleted/rescheduled: occupied
+slots are skipped and pre-existing overlaps are reported for manual reconciliation.

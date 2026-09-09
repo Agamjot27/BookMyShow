@@ -1,5 +1,3 @@
-BEGIN;
-
 CREATE TABLE venues (
   venue_id uuid PRIMARY KEY,
   name text NOT NULL,
@@ -106,4 +104,3 @@ FOR EACH ROW EXECUTE FUNCTION validate_booking_seat_screen();
 
 -- Per TRD, overlap prevention is a future service transaction that locks screens.
 -- No exclusion constraint or additional inventory/entity table is introduced.
-COMMIT;
