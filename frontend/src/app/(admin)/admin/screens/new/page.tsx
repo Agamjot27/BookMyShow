@@ -1,3 +1,10 @@
 "use client";
-import { PlaceholderPage } from "@/components/placeholder-page";
-export default function Page() { return <PlaceholderPage title="Create screens" />; }
+import { Suspense } from "react";
+import { ScreenForm } from "@/components/admin/screen-form";
+export default function Page() {
+  return (
+    <Suspense>
+      <ScreenForm />
+    </Suspense>
+  );
+}

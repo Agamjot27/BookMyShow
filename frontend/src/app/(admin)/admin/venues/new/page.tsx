@@ -1,3 +1,3 @@
 "use client";
-import { PlaceholderPage } from "@/components/placeholder-page";
-export default function Page() { return <PlaceholderPage title="Create venues" />; }
+import { VenueForm } from "@/components/admin/venue-form";
+export default function Page() { return <VenueForm />; }

@@ -1,3 +1,3 @@
 "use client";
-import { PlaceholderPage } from "@/components/placeholder-page";
-export default function Page() { return <PlaceholderPage title="Manage venues" />; }
+import { VenuesList } from "@/components/admin/venues-list";
+export default function Page() { return <VenuesList />; }

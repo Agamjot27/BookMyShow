@@ -1,3 +1,7 @@
 "use client";
-import { PlaceholderPage } from "@/components/placeholder-page";
-export default function Page() { return <PlaceholderPage title="Configure seat layout" />; }
+import { use } from "react";
+import { LayoutBuilder } from "@/components/admin/layout-builder";
+export default function Page({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  return <LayoutBuilder screenId={id} />;
+}
