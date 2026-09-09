@@ -17,6 +17,7 @@ export const env = {
   port: positiveInt("BACKEND_PORT", 4000),
   databaseUrl: required("DATABASE_URL"),
   redisUrl: required("REDIS_URL"),
+  redisMemoryFallback: process.env.NODE_ENV === "development" && process.env.REDIS_ALLOW_MEMORY_FALLBACK === "true",
   jwtSecret: required("JWT_SECRET"),
   jwtIssuer: required("JWT_ISSUER"),
   jwtAudience: required("JWT_AUDIENCE"),

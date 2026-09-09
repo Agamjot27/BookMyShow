@@ -6,7 +6,7 @@ import { createOtp, verifyOtp } from "../lib/otp.js";
 import {
   findPublicUserById,
   issueRefreshToken,
-  findRefreshToken,
+  rotateRefreshToken,
   revokeRefreshTokens,
   upsertUserByEmail,
   type PublicUser,
@@ -77,15 +77,9 @@ export async function verifyOtpAndLogin(input: VerifyOtpInput) {
 // ---------------------------------------------------------------------------
 
 export async function refresh(token: string) {
-  const record = await findRefreshToken(token);
-  if (!record) throw new ApiError(401, "REFRESH_TOKEN_INVALID", "Invalid or expired refresh token");
-
-  const user = await findPublicUserById(record.user_id);
-  if (!user) throw new ApiError(401, "UNAUTHORIZED", "This account is no longer available");
-
-  // Rotate: issue new refresh token, revoke old one (already replaced by issueRefreshToken)
-  const newRefreshToken = await issueRefreshToken(user.user_id);
-  return session(user, newRefreshToken);
+  const result = await rotateRefreshToken(token);
+  if (!result) throw new ApiError(401, "REFRESH_TOKEN_INVALID", "Invalid or expired refresh token");
+  return session(result.user, result.refreshToken);
 }
 
 // ---------------------------------------------------------------------------

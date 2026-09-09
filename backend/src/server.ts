@@ -4,7 +4,6 @@ import { pool } from "../db/client.js";
 import { redis } from "./config/redis.js";
 
 await redis.connect();
-console.log("Redis connected");
 
 const server = app.listen(env.port, () => console.log(`API listening on port ${env.port}`));
 

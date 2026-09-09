@@ -1,4 +1,4 @@
-import { createHash, randomInt } from "node:crypto";
+import { createHash, randomInt, randomUUID } from "node:crypto";
 import { redis } from "../config/redis.js";
 
 const OTP_TTL_SECONDS = 600;        // 10 minutes
@@ -24,10 +24,10 @@ export async function createOtp(email: string): Promise<string> {
   const otp  = String(randomInt(100_000, 999_999)); // 6 digits, cryptographically random
   const hash = hashOtp(otp);
 
-  // Store: { hash, attempts }
-  await redis.set(
+  // A generation identifies this issuance even if the same digits are generated again.
+  await redis.setOtp(
     redisKey(email),
-    JSON.stringify({ hash, attempts: 0 }),
+    JSON.stringify({ generation: randomUUID(), hash, attempts: 0 }),
     { EX: OTP_TTL_SECONDS },
   );
 
@@ -43,25 +43,6 @@ export type OtpVerifyResult =
  * Increments the attempt counter; deletes the key on success.
  */
 export async function verifyOtp(email: string, otp: string): Promise<OtpVerifyResult> {
-  const key = redisKey(email);
-  const raw = await redis.get(key);
-
-  if (!raw) return { ok: false, reason: "expired" };
-
-  const data = JSON.parse(raw) as { hash: string; attempts: number };
-
-  if (data.attempts >= MAX_ATTEMPTS) {
-    await redis.del(key); // clear after lockout
-    return { ok: false, reason: "locked" };
-  }
-
-  if (hashOtp(otp) !== data.hash) {
-    // Persist incremented attempt count with the remaining TTL
-    const ttl = await redis.ttl(key);
-    await redis.set(key, JSON.stringify({ ...data, attempts: data.attempts + 1 }), { EX: ttl > 0 ? ttl : 1 });
-    return { ok: false, reason: "invalid" };
-  }
-
-  await redis.del(key); // consumed — can't be reused
-  return { ok: true };
+  const result = await redis.verifyOtpAtomic(redisKey(email), hashOtp(otp), MAX_ATTEMPTS);
+  return result === "ok" ? { ok: true } : { ok: false, reason: result };
 }
