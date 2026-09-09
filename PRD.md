@@ -17,7 +17,7 @@ V1 should demonstrate a reliable end-to-end booking flow and basic administratio
 | End user | Find an event and reserve seats | Browse events, compare showtimes, see current seat availability, complete checkout, retrieve tickets |
 | Admin | Publish bookable shows and track performance | Manage event and venue data, configure seats, schedule shows, inspect bookings and basic metrics |
 
-**Access assumption:** Use seeded end-user and admin accounts with minimal sign-in. Registration, password recovery, and account management are excluded. Browsing is public; booking and history require sign-in. Admin routes and APIs require the admin role.
+**Access assumption:** Support backend registration and login, plus seeded end-user and admin accounts. Public registration creates normal users only. Password recovery and account management are excluded. Browsing is public; booking and history require sign-in. Admin routes and APIs require the admin role. Registration was added to the backend foundation scope on September 9, 2026; frontend integration remains a later step.
 
 ## 3. User stories and acceptance criteria
 
@@ -191,7 +191,7 @@ For this take-home, success means demonstrable functionality and correctness rat
 - Multi-city search and location discovery.
 - Discounts, coupons, offers, and loyalty programs.
 - Recommendation engines.
-- Registration, social sign-in, password recovery, and profile management.
+- Social sign-in, password recovery, and profile management APIs.
 - General-admission inventory, complex seating layouts, and seat-specific pricing.
 - Ticket downloads, QR validation, and venue check-in.
 - Advanced search, media uploads, bulk administration, and analytics exports.

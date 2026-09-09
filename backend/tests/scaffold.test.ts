@@ -19,7 +19,7 @@ test("scaffold routes enforce authentication and admin authorization", async () 
   assert.ok(address && typeof address !== "string");
   const base = `http://127.0.0.1:${address.port}/api`;
   const token = (role: string, expiresIn = 60) => jwt.sign({ role }, process.env.JWT_SECRET!, {
-    algorithm: "HS256", subject: "test-user", issuer: "scaffold-test",
+    algorithm: "HS256", subject: "00000000-0000-4000-8000-000000000001", issuer: "scaffold-test",
     audience: "scaffold-client", expiresIn,
   });
   const headers = (value: string) => ({ Authorization: `Bearer ${value}` });

@@ -148,6 +148,7 @@ type Ticket = { booking_id: string; user_id: string; show_id: string;
 | Method and path | Access | Request / query | Response |
 |---|---|---|---|
 | POST /auth/login | Public | `{email, password}` | `{access_token, expires_in: 3600, user: User}` |
+| POST /auth/register | Public | `{name, email, password}`; role cannot be supplied | 201 `{access_token, expires_in: 3600, user: User}`; always creates role `user` |
 | GET /auth/me | Signed in | None | `User` |
 | GET /events | Public | Optional `type=movie|standup|concert` | Paginated `Event`; only events with upcoming shows |
 | GET /events/{id} | Public | None | `Event` |
@@ -163,6 +164,8 @@ type Ticket = { booking_id: string; user_id: string; show_id: string;
 | GET /bookings/{id} | Owner | None | `Ticket` |
 
 Logout clears the frontend's in-memory token; there is no refresh-token or logout API in V1. A page reload requires sign-in again. Hold lookup restores the checkout deadline after reauthentication when the token remains in session storage. Never store passwords or JWTs there.
+
+Backend foundation extension (September 9, 2026): registration is now included. Email is trimmed and lowercased; name is 1–100 characters; new passwords require at least 12 characters and at most 72 UTF-8 bytes. Unknown body fields, including role, are rejected. Passwords use asynchronous bcrypt at cost 12. Duplicate email returns 409 `EMAIL_ALREADY_EXISTS`; invalid login returns 401 `INVALID_CREDENTIALS`. JWT expiry is configurable via `JWT_EXPIRES_IN_SECONDS` (default 3600). `/me` is an authenticated alias for `/auth/me`. Public auth endpoints share a per-process limit of 30 requests per IP per 15 minutes (429 on exhaustion). The local seed creates one admin and one normal user without overwriting existing credentials or roles. No frontend auth integration is included yet.
 
 Seat-map response:
 

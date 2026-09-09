@@ -7,16 +7,22 @@
     "build": "tsc",
     "start": "node dist/src/server.js",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test tests/scaffold.test.ts"
+    "test": "tsx --test tests/scaffold.test.ts",
+    "db:check": "tsx db/check.ts",
+    "db:migrate": "tsx db/migrate.ts",
+    "db:seed": "tsx db/seed.ts"
   },
   "dependencies": {
+    "bcrypt": "^6.0.0",
     "dotenv": "^16.4.7",
     "express": "^5.1.0",
+    "express-rate-limit": "^8.7.0",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.13.0",
     "redis": "^4.7.0"
   },
   "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
     "@types/express": "^5.0.0",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^22.0.0",
