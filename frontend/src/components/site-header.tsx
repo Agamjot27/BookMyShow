@@ -100,7 +100,7 @@ export function SiteHeader() {
   const close = () => setPanel(null);
 
   const { city, detecting } = useLocation();
-  const { session, logout } = useAuth();
+  const { session, logout, openAuthModal } = useAuth();
 
   return (
     <header className={styles.header}>
@@ -129,7 +129,7 @@ export function SiteHeader() {
           {session ? (
             <button className={styles.signIn} onClick={() => logout()}>Sign Out</button>
           ) : (
-            <Link href="/login" className={styles.signIn}>Sign In</Link>
+            <button type="button" onClick={openAuthModal} className={styles.signIn}>Sign In</button>
           )}
           <button className={styles.menuButton} aria-label="Open menu" onClick={() => setPanel("Menu")}><List size={18} /></button>
         </div>
@@ -159,7 +159,7 @@ export function SiteHeader() {
             <Link href="/bookings" onClick={close}>My bookings</Link>
             {session
               ? <button onClick={() => { void logout(); close(); }}>Sign out</button>
-              : <Link href="/login" onClick={close}>Sign in</Link>}
+              : <button onClick={() => { openAuthModal(); close(); }}>Sign in</button>}
           </div>
         ) : (
           <p>

@@ -1,0 +1,445 @@
+/* ── Backdrop Overlay ───────────────────────────────────────────────────────── */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(10, 12, 18, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  animation: fadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ── Modal Card ────────────────────────────────────────────────────────────── */
+.card {
+  width: 100%;
+  max-width: 440px;
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  animation: modalPop 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+
+@keyframes modalPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.94) translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* ── Gradient Banner ───────────────────────────────────────────────────────── */
+.banner {
+  position: relative;
+  background: linear-gradient(135deg, #181b26 0%, #2b1d38 38%, #d81c4a 82%, #fb5272 100%);
+  padding: 40px 24px 34px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #ffffff;
+}
+
+/* Subtle decorative glow */
+.banner::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 160px;
+  height: 160px;
+  background: radial-gradient(circle, rgba(255, 100, 130, 0.35) 0%, rgba(255, 255, 255, 0) 70%);
+  pointer-events: none;
+}
+
+/* Close Button */
+.closeBtn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s;
+  z-index: 2;
+}
+
+.closeBtn:hover {
+  background: rgba(255, 255, 255, 0.32);
+  transform: scale(1.08);
+}
+
+/* Logo & Branding */
+.brandRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.cameraIcon {
+  color: #fb7185;
+  filter: drop-shadow(0 2px 8px rgba(251, 113, 133, 0.4));
+  flex-shrink: 0;
+}
+
+.brandLogo {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.8px;
+  color: #ffffff;
+  display: flex;
+  align-items: baseline;
+}
+
+.brandLogo span {
+  background: #eb2555;
+  color: #ffffff;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin: 0 2px;
+  font-size: 24px;
+}
+
+.tagline {
+  margin: 8px 0 0;
+  font-size: 13px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.78);
+  letter-spacing: 0.1px;
+}
+
+/* ── Body Content ──────────────────────────────────────────────────────────── */
+.body {
+  background: #ffffff;
+  padding: 28px 32px 30px;
+  display: flex;
+  flex-direction: column;
+}
+
+.title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  text-align: center;
+  letter-spacing: -0.3px;
+}
+
+.subtitle {
+  margin: 6px 0 22px;
+  font-size: 13px;
+  color: #64748b;
+  text-align: center;
+  line-height: 1.45;
+}
+
+.emailHighlight {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.editEmailBtn {
+  border: none;
+  background: transparent;
+  color: #eb2555;
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 6px;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.optionalTag {
+  font-size: 11px;
+  font-weight: normal;
+  color: #94a3b8;
+}
+
+.input {
+  height: 46px;
+  padding: 0 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 9px;
+  font-size: 15px;
+  color: #0f172a;
+  background: #f8fafc;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+
+.input:focus {
+  border-color: #0f172a;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.08);
+}
+
+.input::placeholder {
+  color: #94a3b8;
+}
+
+/* ── OTP Row ───────────────────────────────────────────────────────────────── */
+.otpRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.otpBox {
+  width: 48px;
+  height: 54px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 22px;
+  font-weight: 700;
+  text-align: center;
+  color: #0f172a;
+  background: #f8fafc;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+}
+
+.otpBox:focus {
+  border-color: #0f172a;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.1);
+  transform: scale(1.04);
+}
+
+.otpBoxError {
+  border-color: #ef4444 !important;
+  background: #fef2f2 !important;
+  color: #dc2626;
+  animation: shake 0.32s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes shake {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-3px, 0, 0); }
+  40%, 60% { transform: translate3d(3px, 0, 0); }
+}
+
+/* ── Buttons ───────────────────────────────────────────────────────────────── */
+.continueBtn {
+  margin-top: 4px;
+  height: 46px;
+  border: none;
+  border-radius: 9px;
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.15s, transform 0.1s, opacity 0.15s;
+}
+
+.continueBtn:hover:not(:disabled) {
+  background: #1e293b;
+  transform: translateY(-1px);
+}
+
+.continueBtn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.continueBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Error message */
+.errorMessage {
+  margin: 0;
+  font-size: 12px;
+  color: #dc2626;
+  background: #fef2f2;
+  border: 1px solid #fee2e2;
+  border-radius: 7px;
+  padding: 8px 12px;
+  text-align: center;
+}
+
+/* Resend row */
+.resendRow {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 2px;
+}
+
+.resendBtn {
+  background: transparent;
+  border: none;
+  color: #eb2555;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+  transition: opacity 0.15s;
+}
+
+.resendBtn:disabled {
+  color: #94a3b8;
+  cursor: default;
+}
+
+/* Legal text */
+.termsText {
+  margin: 20px 0 0;
+  font-size: 11px;
+  color: #94a3b8;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.termsText a {
+  color: #64748b;
+  text-decoration: underline;
+  transition: color 0.15s;
+}
+
+.termsText a:hover {
+  color: #0f172a;
+}
+
+/* ── Success Animation (Tick) ──────────────────────────────────────────────── */
+.successContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 0 16px;
+  animation: fadeIn 0.3s ease;
+}
+
+.checkmarkWrapper {
+  width: 72px;
+  height: 72px;
+  margin-bottom: 18px;
+}
+
+.checkmark {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: block;
+  stroke-width: 3.5;
+  stroke: #10b981;
+  stroke-miterlimit: 10;
+  box-shadow: inset 0px 0px 0px #10b981;
+  animation: fillCircle 0.4s ease-in-out 0.4s forwards, scalePop 0.3s ease-in-out 0.85s both;
+}
+
+.checkmarkCircle {
+  stroke-dasharray: 166;
+  stroke-dashoffset: 166;
+  stroke-width: 3.5;
+  stroke-miterlimit: 10;
+  stroke: #10b981;
+  fill: none;
+  animation: drawCircle 0.55s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+
+.checkmarkCheck {
+  transform-origin: 50% 50%;
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  stroke: #ffffff;
+  stroke-width: 3.8;
+  animation: drawCheck 0.35s cubic-bezier(0.65, 0, 0.45, 1) 0.55s forwards;
+}
+
+@keyframes drawCircle {
+  100% { stroke-dashoffset: 0; }
+}
+
+@keyframes drawCheck {
+  100% { stroke-dashoffset: 0; }
+}
+
+@keyframes fillCircle {
+  100% { box-shadow: inset 0px 0px 0px 36px #10b981; }
+}
+
+@keyframes scalePop {
+  0%, 100% { transform: none; }
+  50% { transform: scale3d(1.12, 1.12, 1); }
+}
+
+.successTitle {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 6px;
+}
+
+.successDesc {
+  font-size: 14px;
+  color: #64748b;
+  margin: 0;
+}
+
+@media (max-width: 480px) {
+  .card {
+    border-radius: 16px;
+  }
+  .banner {
+    padding: 32px 20px 26px;
+  }
+  .body {
+    padding: 22px 20px 24px;
+  }
+  .otpBox {
+    width: 42px;
+    height: 48px;
+    font-size: 20px;
+  }
+}

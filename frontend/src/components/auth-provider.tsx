@@ -3,6 +3,7 @@
 import {
   createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode,
 } from "react";
+import { AuthModal } from "./auth/auth-modal";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -18,10 +19,13 @@ interface Session {
 }
 
 interface AuthContextValue {
-  session:  Session | null;
-  loading:  boolean;
-  login:    (accessToken: string, refreshToken: string, expiresIn: number, user: User) => void;
-  logout:   () => Promise<void>;
+  session:         Session | null;
+  loading:         boolean;
+  login:           (accessToken: string, refreshToken: string, expiresIn: number, user: User) => void;
+  logout:          () => Promise<void>;
+  openAuthModal:   () => void;
+  closeAuthModal:  () => void;
+  isAuthModalOpen: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -42,7 +46,11 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const openAuthModal = useCallback(() => setIsAuthModalOpen(true), []);
+  const closeAuthModal = useCallback(() => setIsAuthModalOpen(false), []);
 
   // ── Persist session to localStorage ──────────────────────────────────────
   const persistSession = useCallback((s: Session) => {
@@ -151,8 +159,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [session, clearStorage]);
 
   return (
-    <AuthContext.Provider value={{ session, loading, login, logout }}>
+    <AuthContext.Provider
+      value={{
+        session,
+        loading,
+        login,
+        logout,
+        openAuthModal,
+        closeAuthModal,
+        isAuthModalOpen,
+      }}
+    >
       {children}
+      <AuthModal open={isAuthModalOpen} onClose={closeAuthModal} />
     </AuthContext.Provider>
   );
 }

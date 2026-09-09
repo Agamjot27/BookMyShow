@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useAuth } from "@/components/auth-provider";
 import {
   UserCircle,
   Receipt,
@@ -49,11 +51,32 @@ export function ProfilePage({
 }: {
   initialTab?: ProfileTab;
 }) {
+  const router = useRouter();
+  const { session, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<ProfileTab>(initialTab);
-  const [userProfile, setUserProfile] = useState<UserProfile>(initialUserProfile);
+  const [userProfile, setUserProfile] = useState<UserProfile>(() => ({
+    ...initialUserProfile,
+    name: session?.user?.name ?? initialUserProfile.name,
+    email: session?.user?.email ?? initialUserProfile.email,
+  }));
   const [editingMobile, setEditingMobile] = useState(false);
   const [editingEmail, setEditingEmail] = useState(false);
   const [savedNotice, setSavedNotice] = useState(false);
+
+  useEffect(() => {
+    if (session?.user) {
+      setUserProfile((prev) => ({
+        ...prev,
+        name: session.user.name || prev.name,
+        email: session.user.email || prev.email,
+      }));
+    }
+  }, [session]);
+
+  const handleSignOut = async () => {
+    await logout();
+    router.push("/login");
+  };
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,7 +117,7 @@ export function ProfilePage({
           <button
             type="button"
             className={styles.signOutBtn}
-            onClick={() => alert("You have been signed out.")}
+            onClick={handleSignOut}
           >
             <SignOut size={20} />
             <span>Sign Out</span>

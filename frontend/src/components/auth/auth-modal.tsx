@@ -1,30 +1,56 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
-import { Spinner } from "@phosphor-icons/react";
+import { useEffect, useRef, useState } from "react";
+import { X, Spinner } from "@phosphor-icons/react";
 import { useAuth } from "@/components/auth-provider";
 import styles from "./auth-modal.module.css";
 
-type Step = "email" | "otp" | "success";
+type ModalStep = "email" | "otp" | "success";
 
-export function LoginPage() {
-  const router = useRouter();
+interface AuthModalProps {
+  open: boolean;
+  onClose: () => void;
+  onSuccess?: () => void;
+}
+
+export function AuthModal({ open, onClose, onSuccess }: AuthModalProps) {
   const { login } = useAuth();
 
-  const [step,      setStep]      = useState<Step>("email");
-  const [email,     setEmail]     = useState("");
-  const [name,      setName]      = useState("");
-  const [otp,       setOtp]       = useState(["", "", "", "", "", ""]);
-  const [loading,   setLoading]   = useState(false);
-  const [error,     setError]     = useState("");
-  const [cooldown,  setCooldown]  = useState(0);
+  const [step, setStep] = useState<ModalStep>("email");
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [cooldown, setCooldown] = useState(0);
   const [resending, setResending] = useState(false);
 
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const emailInputRef = useRef<HTMLInputElement>(null);
 
-  // ── Step 1: request OTP ───────────────────────────────────────────────────
+  // Reset state on open
+  useEffect(() => {
+    if (open) {
+      setStep("email");
+      setError("");
+      setOtp(["", "", "", "", "", ""]);
+      setTimeout(() => emailInputRef.current?.focus(), 100);
+    }
+  }, [open]);
+
+  // Handle ESC key to close
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  // ── Step 1: Request OTP ───────────────────────────────────────────────────
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) return;
@@ -41,7 +67,7 @@ export function LoginPage() {
 
       setStep("otp");
       startCooldown(30);
-      setTimeout(() => otpRefs.current[0]?.focus(), 100);
+      setTimeout(() => otpRefs.current[0]?.focus(), 120);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
@@ -49,13 +75,15 @@ export function LoginPage() {
     }
   };
 
-  // ── OTP input handling ────────────────────────────────────────────────────
+  // ── OTP Inputs ────────────────────────────────────────────────────────────
   const handleOtpChange = (index: number, value: string) => {
     const digit = value.replace(/\D/g, "").slice(-1);
     const next = [...otp];
     next[index] = digit;
     setOtp(next);
-    if (digit && index < 5) otpRefs.current[index + 1]?.focus();
+    if (digit && index < 5) {
+      otpRefs.current[index + 1]?.focus();
+    }
   };
 
   const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
@@ -72,22 +100,26 @@ export function LoginPage() {
     }
   };
 
-  // ── Step 2: verify OTP ────────────────────────────────────────────────────
+  // ── Step 2: Verify OTP ────────────────────────────────────────────────────
   const handleOtpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const code = otp.join("");
-    if (code.length < 6) { setError("Please enter the complete 6-digit OTP"); return; }
+    if (code.length < 6) {
+      setError("Please enter the complete 6-digit OTP");
+      return;
+    }
     setError("");
     setLoading(true);
     try {
-      const body: Record<string, string> = { email: email.trim(), otp: code };
-      if (name.trim()) body.name = name.trim();
+      const payload: Record<string, string> = { email: email.trim(), otp: code };
+      if (name.trim()) payload.name = name.trim();
 
       const res = await fetch("/api/auth/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify(payload),
       });
+
       const data = await res.json() as {
         access_token?: string;
         refresh_token?: string;
@@ -95,21 +127,23 @@ export function LoginPage() {
         user?: { user_id: string; name: string; email: string; role: "user" | "admin" };
         error?: { message: string };
       };
+
       if (!res.ok) {
         setOtp(["", "", "", "", "", ""]);
         setTimeout(() => otpRefs.current[0]?.focus(), 50);
         throw new Error(data.error?.message ?? "Invalid OTP. Please try again.");
       }
 
+      // Persist session
       login(data.access_token!, data.refresh_token!, data.expires_in!, data.user!);
 
-      // Show animated tick!
+      // Show animated tick celebration!
       setStep("success");
 
+      // Auto-close modal after animation completes
       setTimeout(() => {
-        const searchParams = new URLSearchParams(window.location.search);
-        const returnUrl = searchParams.get("redirect") || searchParams.get("from") || "/";
-        router.push(returnUrl);
+        onClose();
+        if (onSuccess) onSuccess();
       }, 1400);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Verification failed");
@@ -118,12 +152,15 @@ export function LoginPage() {
     }
   };
 
-  // ── Resend ────────────────────────────────────────────────────────────────
+  // ── Resend with cooldown ──────────────────────────────────────────────────
   const startCooldown = (sec: number) => {
     setCooldown(sec);
     const iv = setInterval(() => {
       setCooldown((c) => {
-        if (c <= 1) { clearInterval(iv); return 0; }
+        if (c <= 1) {
+          clearInterval(iv);
+          return 0;
+        }
         return c - 1;
       });
     }, 1000);
@@ -149,11 +186,29 @@ export function LoginPage() {
   };
 
   return (
-    <div style={{ minHeight: "85vh", display: "grid", placeItems: "center", padding: "40px 16px" }}>
-      <div className={styles.card} style={{ maxWidth: "440px" }}>
-        {/* Gradient Banner with Camera & Logo */}
+    <div
+      className={styles.backdrop}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="auth-modal-title"
+    >
+      <div className={styles.card} onClick={(e) => e.stopPropagation()}>
+        {/* ── Top Gradient Banner ── */}
         <div className={styles.banner}>
+          <button
+            type="button"
+            className={styles.closeBtn}
+            onClick={onClose}
+            aria-label="Close dialog"
+          >
+            <X size={16} weight="bold" />
+          </button>
+
           <div className={styles.brandRow}>
+            {/* Vintage Movie Projector / Camera Icon */}
             <svg
               className={styles.cameraIcon}
               width="36"
@@ -170,6 +225,7 @@ export function LoginPage() {
               <path d="M30 16 L38 11.5 L38 26.5 L30 22 Z" />
             </svg>
 
+            {/* BookMyShow Logo */}
             <div className={styles.brandLogo}>
               book<span>my</span>show
             </div>
@@ -178,11 +234,13 @@ export function LoginPage() {
           <p className={styles.tagline}>Where movies meet magic.</p>
         </div>
 
-        {/* Card Body */}
+        {/* ── Modal Body Content ── */}
         <div className={styles.body}>
           {step === "email" ? (
             <>
-              <h2 className={styles.title}>Enter your email</h2>
+              <h2 id="auth-modal-title" className={styles.title}>
+                Enter your email
+              </h2>
               <p className={styles.subtitle}>
                 If you don&apos;t have an account, we&apos;ll create one for you.
               </p>
@@ -199,7 +257,6 @@ export function LoginPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    autoFocus
                   />
                 </div>
 
@@ -222,7 +279,9 @@ export function LoginPage() {
             </>
           ) : step === "otp" ? (
             <>
-              <h2 className={styles.title}>Enter OTP</h2>
+              <h2 id="auth-modal-title" className={styles.title}>
+                Enter OTP
+              </h2>
               <p className={styles.subtitle}>
                 We sent a 6-digit code to <span className={styles.emailHighlight}>{email}</span>
                 <button
@@ -296,7 +355,7 @@ export function LoginPage() {
               </form>
             </>
           ) : (
-            /* Animated Tick celebration */
+            /* ── Step 3: Success Animation (Tick) ── */
             <div className={styles.successContainer}>
               <div className={styles.checkmarkWrapper}>
                 <svg
