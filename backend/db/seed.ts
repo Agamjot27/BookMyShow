@@ -19,7 +19,7 @@ function daysFromAnchor(anchor: Date, days: number, hour = 18, minute = 0): Date
 // Same demo catalogue and IDs used by the original seed.
 const EVENTS = [
   { id: "11111111-0001-0000-0000-000000000001", type: "movie", title: "Spider-Man: Brand New Day", duration: 145,
-    description: "Peter Parker faces an unprecedented multiversal chapter as fresh threats emerge in New York City. Striving to reclaim normalcy while upholding his heroic duty, Spider-Man confronts adversaries that test his convictions and resilience to their utmost boundaries.", poster_url: "/images/movies/demo-spiderman.jpg" },
+    description: "Peter Parker faces an unprecedented multiversal chapter as fresh threats emerge in New York City. Striving to reclaim normalcy while upholding his heroic duty, Spider-Man confronts adversaries that test his convictions and resilience to their utmost boundaries.", poster_url: "/images/movies/spiderman.png" },
   { id: "11111111-0001-0000-0000-000000000002", type: "movie", title: "Baaghi 4", duration: 155,
     description: "Ronnie embarks on his most intense mission yet, pushing through lethal criminal cartels with relentless martial arts mastery and breathtaking stunts in a battle where no one is spared.", poster_url: "/images/movies/baaghi-4.jpg" },
   { id: "11111111-0001-0000-0000-000000000003", type: "movie", title: "Demon Slayer: Kimetsu no Yaiba – Infinity Castle", duration: 135,
@@ -29,15 +29,15 @@ const EVENTS = [
   { id: "11111111-0001-0000-0000-000000000005", type: "movie", title: "The Fantastic 4: First Steps", duration: 140,
     description: "Set against a vibrant retro-future 1960s backdrop, Marvel's first family must balance family dynamics with defending Earth from an existential cosmic peril.", poster_url: "/images/movies/fantastic-card.jpg" },
   { id: "11111111-0001-0000-0000-000000000006", type: "movie", title: "Vash Level 2", duration: 130,
-    description: "Dark hypnotic occult forces return to torment an innocent family when unexplainable supernatural possessions unleash escalating psychological dread.", poster_url: null },
+    description: "Dark hypnotic occult forces return to torment an innocent family when unexplainable supernatural possessions unleash escalating psychological dread.", poster_url: "/images/movies/vash_level2.png" },
   { id: "11111111-0001-0000-0000-000000000007", type: "movie", title: "The Midnight Express", duration: 120, description: "Thriller · Hindi", poster_url: null },
   { id: "11111111-0001-0000-0000-000000000008", type: "movie", title: "The Last Light", duration: 110, description: "Drama · English", poster_url: null },
   { id: "11111111-0001-0000-0000-000000000009", type: "movie", title: "A Long Way Home", duration: 125, description: "Adventure · Hindi", poster_url: null },
   { id: "11111111-0001-0000-0000-000000000010", type: "movie", title: "Beyond the Orbit", duration: 118, description: "Science fiction · English", poster_url: null },
-  { id: "11111111-0002-0000-0000-000000000001", type: "standup", title: "An Evening of Almost", duration: 90, description: "Comedy · Hindi, English", poster_url: null },
-  { id: "11111111-0002-0000-0000-000000000002", type: "standup", title: "Completely Unfiltered", duration: 75, description: "Comedy · English", poster_url: null },
-  { id: "11111111-0003-0000-0000-000000000001", type: "concert", title: "After Hours Live", duration: 150, description: "Live music · English", poster_url: null },
-  { id: "11111111-0003-0000-0000-000000000002", type: "concert", title: "The Acoustic Room", duration: 120, description: "Acoustic · Hindi", poster_url: null },
+  { id: "11111111-0002-0000-0000-000000000001", type: "standup", title: "An Evening of Almost", duration: 90, description: "Comedy · Hindi, English", poster_url: "/images/movies/an_evening_almost.png" },
+  { id: "11111111-0002-0000-0000-000000000002", type: "standup", title: "Completely Unfiltered", duration: 75, description: "Comedy · English", poster_url: "/images/movies/completely_unfiltered.png" },
+  { id: "11111111-0003-0000-0000-000000000001", type: "concert", title: "After Hours Live", duration: 150, description: "Live music · English", poster_url: "/images/movies/afterhours.png" },
+  { id: "11111111-0003-0000-0000-000000000002", type: "concert", title: "The Acoustic Room", duration: 120, description: "Acoustic · Hindi", poster_url: "/images/movies/acoustic_room.png" },
 ] as const;
 const VENUES = [
   { id: "22222222-0001-0000-0000-000000000001", name: "Times Square Bharath Cinemas", address: "Udupi, Karnataka" },

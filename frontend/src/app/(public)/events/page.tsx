@@ -1,3 +1,3 @@
-import { HomePage } from "@/components/home/home-page";
+import { EventsPage } from "@/components/events/events-page";
 
-export default function Page() { return <HomePage initialCategory="All" />; }
+export default function Page() { return <EventsPage />; }

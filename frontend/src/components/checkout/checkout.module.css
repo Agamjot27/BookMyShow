@@ -154,6 +154,16 @@
   transition: background 0.15s;
 }
 .payNowBtn:hover { background: #c1121f; }
+.payNowBtn:disabled { opacity: .5; cursor: not-allowed; }
+.reservationNotice { display: flex; align-items: center; gap: 12px; padding: 16px 18px; margin-bottom: 22px; border: 1px solid #ead7ac; background: #fffbf2; border-radius: 10px; color: #72551b; }
+.reservationNotice > svg { flex-shrink: 0; }
+.reservationNotice strong { font-size: 15px; font-weight: 600; }
+.reservationNotice [role=timer] { font-variant-numeric: tabular-nums; }
+.reservationNotice p { margin: 5px 0 0; font-size: 12px; line-height: 1.5; }
+.reservationExpired { background: #fff3f5; border-color: #edc9d2; color: #a52949; }
+.expiryAlert { color: #a52949; font-size: 13px; }
+.demoNote { color: #777; font-size: 12px; margin: 20px 0 12px; }
+.selectAgainBtn { border: 1px solid #d92e55; border-radius: 7px; background: white; color: #b92c4d; padding: 10px 16px; cursor: pointer; margin: 10px 0; }
 
 /* ── Checkout footer ───────────────────────────────────────────────────────── */
 .checkoutFooter {

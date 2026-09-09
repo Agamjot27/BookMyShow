@@ -1,9 +1,10 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { ShareNetwork, Heart, Info, FilmSlate } from "@phosphor-icons/react";
+import { ShareNetwork, Heart, Info } from "@phosphor-icons/react";
 import {
   type Movie,
   type Theatre,
@@ -123,15 +124,14 @@ export function MovieDetailPage({ id, location }: { id: string; location: string
               } as React.CSSProperties
             }
           >
-            {event.poster_url ? <img src={event.poster_url} alt={event.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : (
-            <div className={styles.posterPlaceholder}>
-              <div className={styles.placeholderIcon}>
-                <FilmSlate size={28} />
-              </div>
-              <span className={styles.placeholderTitle}>{movie.title}</span>
-              <span className={styles.placeholderSub}>Poster unavailable</span>
-            </div>
-            )}
+            <Image
+              src={event.poster_url ?? "/images/movies/spiderman.png"}
+              alt={event.title}
+              width={260}
+              height={390}
+              unoptimized
+              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+            />
 
             <div className={styles.inCinemasBanner}>{event.type === "movie" ? "In cinemas" : "Live event"}</div>
           </div>

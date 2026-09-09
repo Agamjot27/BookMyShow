@@ -3,96 +3,36 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { List, MagnifyingGlass, MapPin, NavigationArrow, PlusCircle, Spinner } from "@phosphor-icons/react";
+import { List, MagnifyingGlass, MapPin, NavigationArrow, PlusCircle, Spinner, Buildings, Bank, Mosque, CastleTurret, Park, Island, UserCircle, Receipt, CaretRight, Gear, FilmSlate } from "@phosphor-icons/react";
 import { UiDialog } from "./ui-dialog";
 import { useLocation } from "./location-context";
 import { useAuth } from "./auth-provider";
 import styles from "./site-header.module.css";
 
-// Popular cities to show in the picker
-const POPULAR_CITIES = [
-  "Mumbai", "Delhi", "Bengaluru", "Hyderabad", "Chennai",
-  "Kolkata", "Pune", "Ahmedabad", "Jaipur", "Manipal",
-  "Udupi", "Kochi", "Surat", "Lucknow", "Chandigarh",
-];
+const POPULAR_CITIES = ["Mumbai", "Delhi", "Bengaluru", "Hyderabad", "Chandigarh", "Ahmedabad", "Pune", "Chennai", "Kolkata", "Kochi"];
+const ALL_CITIES = [...POPULAR_CITIES, "Jaipur", "Manipal", "Udupi", "Surat", "Lucknow"];
+const CITY_ICONS = [Buildings, Bank, Mosque, CastleTurret, Park, Mosque, Bank, CastleTurret, Buildings, Island];
 
 function CityPickerPanel({ onClose }: { onClose: () => void }) {
   const { city, detecting, error, setCity, detectFromBrowser } = useLocation();
   const [query, setQuery] = useState("");
-
-  const filtered = query.trim()
-    ? POPULAR_CITIES.filter((c) =>
-        c.toLowerCase().includes(query.toLowerCase()),
-      )
-    : POPULAR_CITIES;
-
-  const handleSelect = (c: string) => {
-    setCity(c);
-    onClose();
-  };
-
-  const handleDetect = () => {
-    detectFromBrowser();
-    // Dialog stays open so user sees the "Detecting…" state, then auto-closes
-  };
-
-  // Auto-close once detection succeeds (detecting flips back to false with no error)
-  // We watch via a simple effect-free approach: show a "close" after detection
-  return (
-    <div className={styles.cityPicker}>
-      {/* Detect button */}
-      <button
-        type="button"
-        className={styles.detectBtn}
-        onClick={handleDetect}
-        disabled={detecting}
-        aria-busy={detecting}
-      >
-        {detecting ? (
-          <Spinner size={16} className={styles.spin} />
-        ) : (
-          <NavigationArrow size={16} weight="fill" />
-        )}
-        {detecting ? "Detecting your location…" : "Detect my location"}
-      </button>
-
-      {error && <p className={styles.cityError}>{error}</p>}
-      {detecting && !error && (
-        <p className={styles.cityHint}>Getting your city, please wait…</p>
-      )}
-
-      {/* Search */}
-      <input
-        className={styles.citySearch}
-        type="search"
-        placeholder="Search for your city…"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        aria-label="Search cities"
-      />
-
-      {/* City grid */}
-      <p className={styles.cityGroupLabel}>Popular cities</p>
-      <div className={styles.cityGrid}>
-        {filtered.map((c) => (
-          <button
-            key={c}
-            type="button"
-            className={`${styles.cityChip} ${city === c ? styles.cityChipActive : ""}`}
-            onClick={() => handleSelect(c)}
-            aria-pressed={city === c}
-          >
-            {c}
-          </button>
-        ))}
-        {filtered.length === 0 && (
-          <p className={styles.cityEmpty}>No cities match &ldquo;{query}&rdquo;</p>
-        )}
-      </div>
-    </div>
-  );
+  const [all, setAll] = useState(false);
+  const filtered = (query.trim() || all ? ALL_CITIES : POPULAR_CITIES).filter(c => c.toLowerCase().includes(query.trim().toLowerCase()));
+  return <div className={styles.cityPicker}>
+    <label className={styles.citySearchBox}><MagnifyingGlass size={22} /><input className={styles.citySearch} type="search" placeholder="Search for your city" value={query} onChange={e => setQuery(e.target.value)} aria-label="Search cities" /></label>
+    <button type="button" className={styles.detectBtn} onClick={detectFromBrowser} disabled={detecting} aria-busy={detecting}>
+      {detecting ? <Spinner size={19} className={styles.spin} /> : <NavigationArrow size={19} />} {detecting ? "Detecting your location…" : "Detect my location"}
+    </button>
+    {error && <p role="alert" className={styles.cityError}>{error}</p>}
+    <p className={styles.cityGroupLabel}>{query ? "Matching cities" : all ? "All cities" : "Popular Cities"}</p>
+    <div className={styles.cityGrid}>{filtered.map(c => {
+      const Icon = CITY_ICONS[POPULAR_CITIES.indexOf(c)] ?? Buildings;
+      return <button key={c} type="button" className={`${styles.cityChip} ${city === c ? styles.cityChipActive : ""}`} aria-pressed={city === c} onClick={() => { setCity(c); onClose(); }}><Icon size={58} weight="thin" aria-hidden="true" /><span>{c === "Delhi" ? "Delhi-NCR" : c}</span></button>;
+    })}</div>
+    {!filtered.length && <p className={styles.cityEmpty}>No cities match your search.</p>}
+    {!query && <button className={styles.viewCities} onClick={() => setAll(!all)}>{all ? "Show Popular Cities" : "View All Cities"}</button>}
+  </div>;
 }
-
 export function SiteHeader() {
   const pathname = usePathname();
   const isMovies = pathname === "/movies" || pathname.startsWith("/movies/");
@@ -126,7 +66,7 @@ export function SiteHeader() {
         <div className={styles.actions}>
           {session?.user.role === "admin" && <Link className={styles.listEvent} href="/admin/events/new"><PlusCircle size={18} /> List an Event</Link>}
           {session ? (
-            <button className={styles.signIn} onClick={() => logout()}>Sign Out</button>
+            <button className={styles.greeting} onClick={() => setPanel("Menu")} aria-haspopup="dialog" aria-expanded={panel === "Menu"}><UserCircle size={34} weight="thin" /><span>Hi, {session.user.name.split(" ")[0]}</span></button>
           ) : (
             <button type="button" onClick={openAuthModal} className={styles.signIn}>Sign In</button>
           )}
@@ -141,25 +81,26 @@ export function SiteHeader() {
             <Link href="/concerts">Concerts</Link>
         </nav>
         <nav className={styles.secondaryNav} aria-label="More from BookMyShow">
-          <Link href="/bookings">My bookings</Link>
+          <Link href="/bookings"><Receipt size={15} aria-hidden="true" />My bookings</Link>
           {session?.user.role === "admin" && <Link href="/admin">Admin</Link>}
         </nav>
       </div>
 
-      <UiDialog open={panel !== null} title={panel ?? ""} onClose={close}>
-        {panel === "Select City" ? (
-          <CityPickerPanel onClose={close} />
-        ) : panel === "Menu" ? (
-          <div className={styles.menuLinks}>
-            {session && <p className={styles.menuUser}>👤 {session.user.name}</p>}
-            <Link href="/movies" onClick={close}>Movies</Link>
-            <Link href="/bookings" onClick={close}>My bookings</Link>
-            {session
-              ? <button onClick={() => { void logout(); close(); }}>Sign out</button>
-              : <button onClick={() => { openAuthModal(); close(); }}>Sign in</button>}
-          </div>
-        ) : null}
+      <UiDialog open={panel === "Select City"} title="Select your city" variant="city" onClose={close}>
+        <CityPickerPanel onClose={close} />
       </UiDialog>
-    </header>
+      <UiDialog open={panel === "Menu"} title={session ? `Hey, ${session.user.name.split(" ")[0]}!` : "Hey, Guest!"} variant="drawer" onClose={close}>
+        <div className={styles.accountDrawer}>
+          <div className={styles.accountIntro}><Link href={session ? "/profile" : "/login"} onClick={close}>{session ? "View Profile" : "Sign in to your account"} <CaretRight size={12} /></Link><UserCircle size={52} weight="thin" /></div>
+          <nav className={styles.accountLinks} aria-label="Account menu">
+            <Link href="/bookings" onClick={close}><Receipt size={24} /><span>Your Orders<small>View all your bookings and tickets</small></span><CaretRight size={16} /></Link>
+            <Link href="/profile" onClick={close}><UserCircle size={24} /><span>Your Account<small>View your profile details</small></span><CaretRight size={16} /></Link>
+            <Link href="/movies" onClick={close}><FilmSlate size={24} /><span>Movies<small>Discover movies and showtimes</small></span><CaretRight size={16} /></Link>
+            <Link href="/events" onClick={close}><Receipt size={24} /><span>Live Events<small>Comedy shows and live music</small></span><CaretRight size={16} /></Link>
+            {session?.user.role === "admin" && <Link href="/admin" onClick={close}><Gear size={24} /><span>Admin Dashboard<small>Manage events, shows and bookings</small></span><CaretRight size={16} /></Link>}
+          </nav>
+          <div className={styles.drawerFooter}><button onClick={() => { close(); if (session) void logout(); else setTimeout(openAuthModal, 230); }}>{session ? "Sign out" : "Sign in"}</button></div>
+        </div>
+      </UiDialog>    </header>
   );
 }

@@ -13,30 +13,22 @@ import styles from "./home.module.css";
 
 function EventPoster({ event }: { event: HomeEvent }) {
   const [failed, setFailed] = useState(false);
+  const src = (!event.poster || failed) ? "/images/movies/spiderman.png" : event.poster;
 
   return (
     <div
       className={styles.poster}
       style={{ "--poster-color": event.color } as CSSProperties}
     >
-      {/* A designed fallback remains visible until images are added. */}
-      <div className={styles.posterFallback} aria-hidden="true">
-        <span className={styles.posterCategory}>{event.category}</span>
-        <span className={styles.posterTitle}>{event.title}</span>
-        <span className={styles.posterCaption}>Poster preview</span>
-      </div>
-
-      {event.poster && !failed && (
-        <Image
-          src={event.poster}
-          alt=""
-          fill
-          unoptimized
-          sizes="(max-width: 600px) 155px, 200px"
-          className={styles.posterImage}
-          onError={() => setFailed(true)}
-        />
-      )}
+      <Image
+        src={src}
+        alt=""
+        fill
+        unoptimized
+        sizes="(max-width: 600px) 155px, 200px"
+        className={styles.posterImage}
+        onError={() => setFailed(true)}
+      />
     </div>
   );
 }
@@ -93,7 +85,7 @@ function EventRail({
   }
 
   return (
-    <div>
+    <div className={styles.railWrapper}>
       <div
         ref={railRef}
         id={railId}
@@ -132,135 +124,62 @@ function EventRail({
   );
 }
 
+function CataloguePanel({ title, events, href, loading, error, children }: {
+  title: string; events: HomeEvent[]; href: string; loading: boolean; error: string; children?: React.ReactNode;
+}) {
+  return <section className={styles.panel} aria-label={title}>
+    <div className={styles.sectionHeading}><h2>{title}</h2><Link href={href}>See all <span aria-hidden="true">↗</span></Link></div>
+    {children}
+    {loading ? <p className={styles.emptyState} role="status">Loading events…</p> : error ? <p className={styles.emptyState} role="alert">{error}</p> : events.length ? <EventRail events={events} label={title} /> : <p className={styles.emptyState}>No upcoming shows available yet.</p>}
+  </section>;
+}
+
 export function HomePage({ initialCategory = "All" }: { initialCategory?: Category } = {}) {
   const { events, loading, error } = useCatalogue();
+  const [liveType, setLiveType] = useState<Category>("All");
+  const [movieSort, setMovieSort] = useState("All movies");
+  const [category, setCategory] = useState<Category>(initialCategory);
   const homeEvents: HomeEvent[] = events.map(event => ({ id: event.event_id, title: event.title,
     category: event.type === "movie" ? "Movies" : event.type === "standup" ? "Standup" : "Concerts",
-    description: event.description, poster: event.poster_url, color: "#283e45", featured: true }));
-  const [category, setCategory] = useState<Category>(initialCategory);
+    description: `${event.duration} min`, poster: event.poster_url, color: "#e9e9ed" }));
+  const movies = homeEvents.filter(event => event.category === "Movies");
+  const sortedMovies = movieSort === "A–Z" ? [...movies].sort((a, b) => a.title.localeCompare(b.title)) : movies;
+  const liveEvents = homeEvents.filter(event => event.category !== "Movies" && (liveType === "All" || event.category === liveType));
+  const links = { Movies: "/movies", Standup: "/standup", Concerts: "/concerts" };
+  return <main className={styles.home}>
+    <h1 className={styles.srOnly}>Discover movies and live events</h1>
+    {initialCategory === "All" ? <div className={styles.topGrid}>
+      <CataloguePanel title="Recommended Movies" events={sortedMovies} href="/movies" loading={loading} error={error}>
+        <div className={styles.filters} aria-label="Movie order">{["All movies", "A–Z"].map(item => <button key={item} type="button" aria-pressed={movieSort === item} className={movieSort === item ? styles.activeFilter : undefined} onClick={() => setMovieSort(item)}>{item}</button>)}</div>
+      </CataloguePanel>
+      <CataloguePanel title="Best of Live Events" events={liveEvents} href="/events" loading={loading} error={error}>
+        <div className={styles.filters} aria-label="Live event category">{(["All", "Standup", "Concerts"] as Category[]).map(item => <button key={item} type="button" aria-pressed={liveType === item} className={liveType === item ? styles.activeFilter : undefined} onClick={() => setLiveType(item)}>{item === "All" ? "All live events" : item}</button>)}</div>
+      </CataloguePanel>
+    </div> : <CataloguePanel title={category === "All" ? "Upcoming Events" : category} events={homeEvents.filter(event => category === "All" || category === event.category)} href="/events" loading={loading} error={error}>
+      <div className={styles.filters}>{categories.map(item => <button key={item} type="button" aria-pressed={category === item} className={category === item ? styles.activeFilter : undefined} onClick={() => setCategory(item)}>{item}</button>)}</div>
+    </CataloguePanel>}
 
-  const filteredEvents = homeEvents.filter(
-    (event) => category === "All" || event.category === category,
-  );
+    <section className={styles.discovery} aria-labelledby="discover-title">
+      <h2 id="discover-title">Explore something new</h2>
+      <div className={styles.discoveryGrid}>
+        {(["Movies", "Standup", "Concerts"] as const).map(item => <div key={item} className={styles.pickGroup}>
+          <Link className={styles.pickHeading} href={links[item]}>{item}</Link>
+          <ul>{homeEvents.filter(event => event.category === item).slice(0, 3).map(event => <li key={event.id}><Link href={`/events/${event.id}`}>{event.title}</Link></li>)}</ul>
+          {!loading && !error && !homeEvents.some(event => event.category === item) && <p>More shows coming soon.</p>}
+        </div>)}
+        <aside className={styles.weekendCard}><h3>Your next night out</h3><p>Big screens, live music and a little laughter. Find your next plan.</p><Link href="/events">Explore events <span aria-hidden="true">↗</span></Link></aside>
+      </div>
+    </section>
 
-  const featuredEvents = homeEvents.filter((event) => event.featured);
+    <Link href="/events" className={styles.promo}>
+      <div className={styles.promoBrand}><span>book<span>my</span>show</span><strong>LIVE IT.</strong></div>
+      <div><strong>Great entertainment. One great plan.</strong><span>Discover movies, comedy and concerts near you.</span></div>
+      <span className={styles.promoArrow} aria-hidden="true">↗</span>
+    </Link>
 
-  function browseCategory(nextCategory: Category) {
-    setCategory(nextCategory);
-
-    const reduceMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-
-    document.getElementById("recommended-events")?.scrollIntoView({
-      behavior: reduceMotion ? "auto" : "smooth",
-      block: "start",
-    });
-  }
-
-  return (
-    <main className={styles.home}>
-
-      <section
-        id="recommended-events"
-        className={styles.recommended}
-        aria-labelledby="recommended-title"
-      >
-        <div className={styles.sectionHeading}>
-          <div>
-            <h1 id="recommended-title">Find your next great plan.</h1>
-            <p>Movies, standup and live music. Discover what moves you.</p>
-          </div>
-
-          <span className={styles.previewLabel}>Upcoming events</span>
-        </div>
-
-        <div
-          className={styles.filters}
-          role="group"
-          aria-label="Filter events by category"
-        >
-          {categories.map((item) => (
-            <button
-              key={item}
-              type="button"
-              aria-pressed={category === item}
-              className={
-                category === item ? styles.activeFilter : undefined
-              }
-              onClick={() => setCategory(item)}
-            >
-              {item}
-            </button>
-          ))}
-        </div>
-
-        <p className={styles.srOnly} role="status">
-          {filteredEvents.length} events in {category}.
-        </p>
-        <h2 className={styles.srOnly}>Browse {category === "All" ? "all events" : category.toLowerCase()}</h2>
-
-        {loading ? <p role="status">Loading events…</p> : error ? <p role="alert">{error}</p> : filteredEvents.length === 0 ? <p className={styles.emptyState}>No events in this category. Try another category.</p> : <EventRail
-          key={category}
-          events={filteredEvents}
-          label="recommended events"
-        />}
-      </section>
-
-      <section className={styles.discovery} aria-labelledby="picks-title">
-        <div className={styles.picks}>
-          <h2 id="picks-title">Find your kind of evening</h2>
-
-          <div className={styles.pickGrid}>
-            {categories
-              .filter((item) => item !== "All")
-              .map((item) => (
-                <div key={item} className={styles.pickGroup}>
-                  <button
-                    type="button"
-                    className={styles.pickHeading}
-                    onClick={() => browseCategory(item)}
-                  >
-                    {item}
-                    <span aria-hidden="true"> ↗</span>
-                  </button>
-
-                  <ul>
-                    {homeEvents
-                      .filter((event) => event.category === item)
-                      .slice(0, 3)
-                      .map((event) => (
-                        <li key={event.id}>{event.title}</li>
-                      ))}
-                  </ul>
-                </div>
-              ))}
-          </div>
-        </div>
-
-        <aside className={styles.weekendCard}>
-          <span className={styles.eyebrow}>A little less scrolling</span>
-          <h3>A little more going out.</h3>
-          <p>Find a big-screen escape, a good laugh, or your next live show.</p>
-
-          <button type="button" onClick={() => browseCategory("All")}>
-            Explore events <span aria-hidden="true">→</span>
-          </button>
-        </aside>
-      </section>
-
-
-      <section className={styles.spotlight} aria-labelledby="spotlight-title">
-        <div className={styles.spotlightHeading}>
-
-          <div>
-            <h2 id="spotlight-title">In the spotlight</h2>
-            <p>A few picks for your next outing.</p>
-          </div>
-        </div>
-
-        <EventRail events={featuredEvents} label="spotlight events" />
-      </section>
-    </main>
-  );
+    <section className={styles.spotlight} aria-labelledby="spotlight-title">
+      <div className={styles.spotlightHeading}><div className={styles.spotlightMark} aria-hidden="true">▷</div><div><h2 id="spotlight-title">IN THE SPOTLIGHT</h2><p>Your next big-screen experience starts here.</p></div><Link href="/movies">See all ↗</Link></div>
+      {loading ? <p role="status">Loading movies…</p> : error ? <p role="alert">{error}</p> : movies.length ? <EventRail events={movies} label="Movies in the spotlight" /> : <p>No movies with upcoming shows yet.</p>}
+    </section>
+  </main>;
 }

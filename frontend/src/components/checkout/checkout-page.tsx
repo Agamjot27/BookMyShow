@@ -340,6 +340,9 @@ export function CheckoutPage() {
   const [error, setError] = useState("");
   const [blocked, setBlocked] = useState(false);
   const [reload, setReload] = useState(0);
+  const [deadline, setDeadline] = useState<number | null>(null);
+  const [remaining, setRemaining] = useState<number | null>(null);
+  const expired = remaining === 0 && !checkout?.attempted;
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>("upi");
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
@@ -350,6 +353,8 @@ export function CheckoutPage() {
     setReady(false);
     setBlocked(false);
     setError("");
+    setDeadline(null);
+    setRemaining(null);
     (async () => {
       try {
         const current = readCheckoutSession();
@@ -372,6 +377,7 @@ export function CheckoutPage() {
         // After an ambiguous confirmation, Redis may be gone because the booking
         // committed. Never block a replay on a hold/availability lookup.
         if (!current.attempted) {
+          const requestedAt = performance.now();
           const holdRes = await fetch(`/api/shows/${current.show_id}/holds/${current.hold_token}`, { headers, cache: "no-store" });
           const hold = await holdRes.json();
           if (!holdRes.ok) {
@@ -381,6 +387,18 @@ export function CheckoutPage() {
           if (JSON.stringify([...hold.seat_ids].sort()) !== JSON.stringify([...current.seat_ids].sort())) {
             if (active) setBlocked(true);
             throw new Error("Your selected seats do not match this hold. Select seats again.");
+          }
+          const expiry = Date.parse(hold.expires_at);
+          const serverTime = Date.parse(hold.server_time);
+          if (!Number.isFinite(expiry) || !Number.isFinite(serverTime)) {
+            throw new Error("Could not verify reservation expiry. Please reload checkout.");
+          }
+          // Server timestamps avoid device clock skew. Subtract the full request
+          // time conservatively; entering checkout never grants a fresh hold.
+          const end = requestedAt + Math.max(0, Math.min(expiry, Date.parse(details.start_time)) - serverTime);
+          if (active) {
+            setDeadline(end);
+            setRemaining(Math.max(0, Math.ceil((end - performance.now()) / 1000)));
           }
         }
         const mapRes = await fetch(`/api/shows/${current.show_id}/seats`, { headers, cache: "no-store" });
@@ -396,8 +414,26 @@ export function CheckoutPage() {
     return () => { active = false; };
   }, [session, reload]);
 
+  useEffect(() => {
+    if (deadline === null || ticket) return;
+    const update = () => setRemaining(Math.max(0, Math.ceil((deadline - performance.now()) / 1000)));
+    update();
+    const interval = setInterval(update, 1000);
+    window.addEventListener("focus", update);
+    document.addEventListener("visibilitychange", update);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", update);
+      document.removeEventListener("visibilitychange", update);
+    };
+  }, [deadline, ticket]);
+
   const handlePay = async () => {
-    if (!checkout || !session || inFlight.current) return;
+    if (!checkout || !session || inFlight.current || !ready || blocked) return;
+    if (!checkout.attempted && (deadline === null || performance.now() >= deadline)) {
+      setRemaining(0);
+      return;
+    }
     inFlight.current = true;
     setBusy(true);
     setError("");
@@ -495,6 +531,11 @@ export function CheckoutPage() {
       <div className={styles.layout}>
         {/* ── Left: Payment ── */}
         <main className={styles.paymentSection}>
+          <div className={`${styles.reservationNotice} ${expired || blocked ? styles.reservationExpired : ""}`}>
+            <Timer size={23} aria-hidden="true" />
+            <div>{blocked ? <><strong>Reservation unavailable</strong><p>Select your seats again to continue.</p></> : checkout?.attempted ? <><strong>{busy ? "Confirming your booking…" : "Check your booking confirmation"}</strong><p>Your confirmation was submitted. Retry the same attempt to check its result.</p></> : expired ? <><strong>Your reservation expired</strong><p>Select seats again to continue.</p></> : <><strong>Complete payment {remaining === null ? "before your reservation expires" : <>in <span role="timer" aria-label="Reservation time remaining">{String(Math.floor(remaining / 60)).padStart(2, "0")}:{String(remaining % 60).padStart(2, "0")}</span></>}</strong><p>{remaining === null ? "Checking your reservation…" : "Your selected seats are reserved until this timer ends."}</p></>}</div>
+          </div>
+          {expired && <p role="alert" className={styles.expiryAlert}>Your reservation expired. Select seats again.</p>}
           <h2 className={styles.sectionTitle}>Payment options</h2>
 
           <div className={styles.paymentLayout}>
@@ -524,18 +565,17 @@ export function CheckoutPage() {
               {selectedMethod === "paylater"   && <SimplePanel title="Pay Later"       message="Pay after your booking with supported services." />}
               {selectedMethod === "points"     && <SimplePanel title="Redeem Points"   message="You have 0 BookMyShow Super Points available." />}
 
-              <p>Payment is simulated. No money is charged.</p>
+              <p className={styles.demoNote}>Demo payment—no money charged.</p>
               {error && <p role="alert">{error}</p>}
               {!session && <button type="button" onClick={openAuthModal}>Sign in</button>}
               {!ready && !blocked && <button type="button" onClick={() => setReload(value => value + 1)}>Reload checkout</button>}
-              {blocked && <button type="button" onClick={() => router.push(checkout ? `/shows/${checkout.show_id}/seats` : "/")}>Select seats again</button>}
-              <button type="button" disabled={busy || !!checkout?.attempted} onClick={() => setError("Simulated payment failed. No confirmation was sent; your hold is unchanged.")}>Simulate payment failure</button>
+              {(blocked || expired) && <button type="button" className={styles.selectAgainBtn} onClick={() => router.push(checkout ? `/shows/${checkout.show_id}/seats` : "/")}>Select seats again</button>}
               {/* Pay button inside panel */}
               <button
                 type="button"
                 className={styles.payNowBtn}
                 onClick={handlePay}
-                disabled={!ready || busy || blocked || !session}
+                disabled={!ready || busy || blocked || expired || !session}
               >
                 {busy ? "Confirming…" : checkout?.attempted ? "Retry confirmation" : `Simulate payment · ${formatINR(orderTotal)}`}
               </button>

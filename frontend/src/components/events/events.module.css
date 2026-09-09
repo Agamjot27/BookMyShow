@@ -1,0 +1,29 @@
+.page { width: 100%; max-width: none; margin: 0; background: #f2f4f8; color: #24252b; min-height: 70vh; padding: 48px 28px 72px; }
+.layout { width: 100%; max-width: none; margin: auto; display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 34px; }
+.filters h2, .catalogue h1 { margin: 0 0 30px; font-size: 26px; font-weight: 650; line-height: 1.3; }
+.filters details { position: relative; padding: 20px; margin-bottom: 14px; border-radius: 5px; background: white; }
+.filters summary { cursor: pointer; padding-right: 48px; font-size: 15px; }
+.filters details[open] summary { color: #d92e55; }
+.clear { position: absolute; right: 16px; top: 20px; border: 0; background: transparent; color: #74747e; cursor: pointer; font-size: 12px; }
+.options { display: flex; gap: 8px; flex-wrap: wrap; padding-top: 22px; }
+.options button, .chips button { border: 1px solid #d6d6db; background: white; color: #d92e55; cursor: pointer; padding: 9px 13px; font-size: 13px; }
+.options button[aria-pressed=true], .chips button[aria-pressed=true] { background: #fce8ee; border-color: #d92e55; }
+.chips { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 32px; }
+.chips button { border-radius: 24px; padding: 10px 16px; }
+.field { display: grid; gap: 9px; font-size: 12px; margin-top: 20px; color: #63636e; }
+.field input, .field select { width: 100%; min-width: 0; border: 1px solid #d6d6db; border-radius: 4px; padding: 9px; background: white; color: #24252b; }
+.reset { width: 100%; padding: 11px; background: transparent; border: 1px solid #d92e55; border-radius: 4px; color: #d92e55; cursor: pointer; }
+.grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px; }
+.card { min-width: 0; }
+.card a { color: inherit; text-decoration: none; display: block; }
+.poster { overflow: hidden; border-radius: 9px; background: #222632; aspect-ratio: 3 / 5; display: flex; flex-direction: column; }
+.poster img { width: 100%; height: calc(100% - 34px); object-fit: cover; }
+.fallback { flex: 1; display: grid; place-items: center; padding: 20px; color: white; text-align: center; }
+.date { flex-shrink: 0; margin-top: auto; padding: 8px 10px; height: 34px; background: #080808; color: #fff; font-size: 13px; }
+.card h2 { font-size: 17px; line-height: 1.4; margin: 18px 0 8px; font-weight: 650; }
+.card p { margin: 5px 0; font-size: 13px; line-height: 1.5; color: #696974; }
+.card .price { color: #35353e; }
+.state { padding: 45px 0; color: #676773; }
+.page button:focus-visible, .page a:focus-visible, .page summary:focus-visible, .page input:focus-visible, .page select:focus-visible { outline: 3px solid #d92e55; outline-offset: 4px; }
+@media(max-width: 1150px) { .layout { grid-template-columns: 240px minmax(0, 1fr); gap: 24px; } .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; } }
+@media(max-width: 800px) { .page { padding: 28px 16px 48px; } .layout { grid-template-columns: 1fr; } .filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; } .filters h2 { width: 100%; margin-bottom: 5px; font-size: 22px; } .filters details { flex: 1 1 200px; margin: 0; } .reset { width: auto; } .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 16px; } .catalogue h1 { margin-bottom: 20px; } .card h2 { font-size: 16px; } }
