@@ -1,3 +1,14 @@
-"use client";
-import { PlaceholderPage } from "@/components/placeholder-page";
-export default function Page() { return <PlaceholderPage title="Select seats" />; }
+import { Suspense } from "react";
+import { SeatLayoutPage } from "@/components/shows/seat-layout-page";
+
+export const metadata = {
+  title: "Select Seats | BookMyShow",
+};
+
+export default function Page() {
+  return (
+    <Suspense fallback={<div style={{ padding: 40, textAlign: "center" }}>Loading seats…</div>}>
+      <SeatLayoutPage />
+    </Suspense>
+  );
+}

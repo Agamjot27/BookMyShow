@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   Star,
@@ -38,13 +39,38 @@ export function MovieDetailPage({ id, location }: { id: string; location: string
   const movie: Movie =
     sampleMovies.find((m) => m.id === id) || sampleMovies[0];
 
+  const router = useRouter();
   const [selectedDateIdx, setSelectedDateIdx] = useState(0);
   const [favoriteTheatres, setFavoriteTheatres] = useState<string[]>([]);
   const [shared, setShared] = useState(false);
-  const [selectedShowtime, setSelectedShowtime] = useState<Showtime | null>(null);
 
   const theatres = movie.theatres || defaultTheatres;
   const recommendations = sampleMovies.filter((m) => m.id !== movie.id);
+
+  const selectedDate = dateSchedule[selectedDateIdx];
+  const formattedDate = `${selectedDate.day}, ${selectedDate.date} ${selectedDate.month} 2026`;
+
+  // Navigate to seat layout page when a showtime is clicked
+  const handleShowtimeClick = (theatre: typeof theatres[number], showtime: Showtime) => {
+    // Pass all showtimes for this theatre so the time-switcher works on the seat page
+    const times = theatre.showtimes
+      .map((s) => `${s.time}|${s.label ?? ""}`)
+      .join(",");
+
+    const params = new URLSearchParams({
+      movie:    movie.title,
+      theatre:  theatre.name,
+      date:     formattedDate,
+      time:     showtime.time,
+      label:    showtime.label ?? "",
+      times,
+      location,
+      movieId:  movie.id,
+    });
+
+    // Use theatre.id as the "show id" for the URL (would be a real show UUID when backend is connected)
+    router.push(`/shows/${theatre.id}/seats?${params.toString()}`);
+  };
 
   const handleBookTicketsClick = () => {
     const showtimesEl = document.getElementById("showtimes-section");
@@ -360,12 +386,7 @@ export function MovieDetailPage({ id, location }: { id: string; location: string
                           ? styles.showtimePillFast
                           : ""
                       }`}
-                      onClick={() => {
-                        setSelectedShowtime(st);
-                        alert(
-                          `Selected ${theatre.name} at ${st.time}. Seating layout is ready for booking confirmation!`
-                        );
-                      }}
+                      onClick={() => handleShowtimeClick(theatre, st)}
                     >
                       <span className={styles.showtimeTime}>{st.time}</span>
                       {st.label && (

@@ -1,0 +1,310 @@
+/* ── Page ──────────────────────────────────────────────────────────────────── */
+.page {
+  min-height: 100vh;
+  background: #f0f0f5;
+  font-family: Arial, Helvetica, sans-serif;
+  color: #222;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Top bar ───────────────────────────────────────────────────────────────── */
+.topBar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 32px;
+  background: #fff;
+  border-bottom: 1px solid #e4e4e7;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+.backBtn {
+  display: grid;
+  place-items: center;
+  width: 36px; height: 36px;
+  border: 0; border-radius: 50%;
+  background: #f4f4f4; color: #333;
+  cursor: pointer; flex-shrink: 0;
+}
+.backBtn:hover { background: #e8e8e8; }
+.topBarInfo { display: flex; flex-direction: column; gap: 2px; }
+.topBarTitle { font-size: 15px; font-weight: 700; color: #111; }
+.topBarSub { font-size: 12px; color: #666; }
+
+/* ── Two-column layout ─────────────────────────────────────────────────────── */
+.layout {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 24px;
+  max-width: 1200px;
+  margin: 24px auto;
+  padding: 0 24px;
+  align-items: start;
+  width: 100%;
+}
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+}
+
+/* ── Payment section ───────────────────────────────────────────────────────── */
+.paymentSection { display: flex; flex-direction: column; gap: 0; }
+.sectionTitle { font-size: 18px; font-weight: 700; color: #111; margin: 0 0 16px; }
+
+.paymentLayout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e4e4e7;
+  overflow: hidden;
+  min-height: 420px;
+}
+@media (max-width: 600px) {
+  .paymentLayout { grid-template-columns: 1fr; }
+}
+
+/* ── Method list ───────────────────────────────────────────────────────────── */
+.methodList {
+  border-right: 1px solid #e4e4e7;
+  display: flex;
+  flex-direction: column;
+}
+.methodItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 0;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fff;
+  color: #444;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.methodItem:hover { background: #fef2f4; color: #e63946; }
+.methodItemActive {
+  background: #fff0f2 !important;
+  color: #e63946 !important;
+  border-left: 3px solid #e63946;
+  font-weight: 700;
+}
+.methodIcon { flex-shrink: 0; display: flex; }
+.methodLabel { white-space: nowrap; }
+
+/* ── Method panel ──────────────────────────────────────────────────────────── */
+.methodPanel {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.methodContent { display: flex; flex-direction: column; gap: 16px; }
+.methodContentTitle { margin: 0; font-size: 16px; font-weight: 700; color: #111; }
+
+/* UPI */
+.upiRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  max-width: 400px;
+  transition: border-color 0.12s;
+}
+.upiRow:hover { border-color: #e63946; }
+.upiQrIcon { color: #555; flex-shrink: 0; }
+.upiRowText { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.upiRowLabel { font-size: 14px; font-weight: 600; color: #111; }
+.upiRowSub { font-size: 11px; color: #888; }
+.upiArrow { color: #888; transform: rotate(180deg); flex-shrink: 0; }
+
+/* Card form */
+.cardForm { display: flex; flex-direction: column; gap: 14px; max-width: 400px; }
+.cardRow2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.cardLabel { display: flex; flex-direction: column; gap: 5px; font-size: 12px; font-weight: 600; color: #555; }
+.cardInput {
+  height: 40px; padding: 0 12px;
+  border: 1px solid #ddd; border-radius: 7px;
+  font-size: 14px; color: #111; background: #fafafa;
+  outline: none; transition: border-color 0.12s;
+}
+.cardInput:focus { border-color: #e63946; background: #fff; }
+
+/* Simple panel */
+.simplePanelMsg { margin: 0; font-size: 13px; color: #666; }
+
+/* Pay now button */
+.payNowBtn {
+  align-self: flex-start;
+  padding: 13px 36px;
+  border: 0; border-radius: 8px;
+  background: #e63946; color: #fff;
+  font-size: 15px; font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.payNowBtn:hover { background: #c1121f; }
+
+/* ── Checkout footer ───────────────────────────────────────────────────────── */
+.checkoutFooter {
+  margin-top: 24px;
+  padding: 24px;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e4e4e7;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.footerLogo {
+  font-family: "Arial Narrow", "Segoe UI", sans-serif;
+  font-size: 18px; font-weight: 700; letter-spacing: -1px; color: #444;
+}
+.footerLogo span {
+  background: #d71935; color: #fff;
+  padding: 2px 2px; margin-inline: 1px;
+  clip-path: polygon(0 8%,15% 0,25% 8%,40% 0,50% 8%,65% 0,78% 8%,90% 0,100% 8%,100% 92%,90% 100%,78% 92%,65% 100%,50% 92%,40% 100%,25% 92%,15% 100%,0 92%);
+}
+.footerNote { display: flex; flex-direction: column; gap: 8px; }
+.footerNote strong { font-size: 13px; color: #333; }
+.footerNote ol { margin: 0; padding-left: 18px; }
+.footerNote li { font-size: 12px; color: #666; line-height: 1.6; }
+.footerSafe { margin: 0; font-size: 12px; color: #888; }
+.footerBadges { display: flex; gap: 8px; flex-wrap: wrap; }
+.footerBadge {
+  padding: 4px 10px;
+  border: 1px solid #ddd; border-radius: 4px;
+  font-size: 10px; font-weight: 700; color: #555;
+  background: #fafafa;
+}
+
+/* ── Order summary ─────────────────────────────────────────────────────────── */
+.summary { display: flex; flex-direction: column; gap: 12px; }
+
+.summaryCard {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e4e4e7;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.summaryCardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.summaryTitleRow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.summaryTitle { font-size: 15px; font-weight: 700; color: #111; }
+.summarySeatCount {
+  flex-shrink: 0;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: #e63946; color: #fff;
+  font-size: 13px; font-weight: 700;
+  display: grid; place-items: center;
+}
+.eventTypeBadge {
+  padding: 2px 8px; border-radius: 12px;
+  font-size: 10px; font-weight: 700; color: #fff;
+  letter-spacing: 0.05em; text-transform: uppercase;
+}
+.summaryDateTime { margin: 0; font-size: 13px; font-weight: 600; color: #333; }
+.summaryMeta { margin: 0; font-size: 12px; color: #666; }
+.summaryVenue { margin: 0; font-size: 12px; color: #555; }
+
+.ageWarning {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; border-radius: 8px;
+  background: #fff3f3; border: 1px solid #fbc4c4;
+  font-size: 12px; color: #c1121f;
+}
+.ageIcon { font-size: 14px; }
+
+.cancellationNote {
+  padding: 10px 14px; border-radius: 8px;
+  background: #fdf6ec; border: 1px solid #f7d79e;
+  font-size: 12px; color: #7c5d20;
+}
+.cancellationNote strong { display: block; margin-bottom: 4px; }
+.cancellationNote p { margin: 0; }
+
+/* Price breakdown */
+.priceRow {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 10px; font-size: 13px; color: #444;
+  padding: 6px 0; border-bottom: 1px solid #f0f0f0;
+}
+.priceRow:last-child { border-bottom: 0; }
+.priceRowTotal { font-weight: 700; color: #111; font-size: 14px; }
+.priceRowFinal { font-weight: 700; color: #111; font-size: 16px; padding-top: 10px; }
+.feesCaret { font-size: 10px; color: #888; }
+.charityNote { font-size: 11px; color: #888; }
+.tncLink { border: 0; background: transparent; color: #e63946; font-size: 11px; cursor: pointer; text-decoration: underline; padding: 0; }
+.charityRight { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.charityZero { color: #aaa; }
+.charityAdd {
+  border: 0; background: transparent;
+  color: #e63946; font-size: 12px; font-weight: 700;
+  cursor: pointer; padding: 0;
+}
+
+/* Contact */
+.contactHeader { display: flex; justify-content: space-between; align-items: center; }
+.contactTitle { font-size: 13px; font-weight: 700; color: #111; }
+.editBtn { border: 0; background: transparent; color: #e63946; font-size: 13px; font-weight: 600; cursor: pointer; }
+.contactInfo { margin: 0; font-size: 12px; color: #555; }
+
+/* Offers */
+.offersRow {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 20px;
+  background: #fff; border-radius: 12px;
+  border: 1px solid #e4e4e7;
+  width: 100%; cursor: pointer; font-size: 13px; font-weight: 600; color: #333;
+  transition: background 0.12s;
+}
+.offersRow:hover { background: #fef9f0; }
+.offersIcon { color: #f5a623; }
+.offersChevron { margin-left: auto; font-size: 14px; color: #888; }
+.offersPanel { background: #fff; border-radius: 0 0 12px 12px; border: 1px solid #e4e4e7; border-top: 0; padding: 14px 20px; }
+.noOffers { margin: 0; font-size: 13px; color: #888; }
+
+.consentText { margin: 0; font-size: 12px; color: #777; line-height: 1.5; }
+
+/* ── Success page ──────────────────────────────────────────────────────────── */
+.successPage {
+  min-height: 100vh;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 12px; padding: 40px 24px;
+  background: #f0f0f5; text-align: center;
+  font-family: Arial, Helvetica, sans-serif;
+}
+.successIcon { color: #2dc492; }
+.successTitle { margin: 0; font-size: 28px; font-weight: 800; color: #111; }
+.successSub { margin: 0; font-size: 17px; font-weight: 600; color: #333; }
+.successMeta { margin: 0; font-size: 13px; color: #666; }
+.successTotal { margin: 8px 0 0; font-size: 20px; font-weight: 700; color: #111; }
+.successHomeBtn {
+  margin-top: 16px;
+  padding: 13px 36px;
+  border: 0; border-radius: 8px;
+  background: #e63946; color: #fff;
+  font-size: 15px; font-weight: 700;
+  cursor: pointer; transition: background 0.15s;
+}
+.successHomeBtn:hover { background: #c1121f; }

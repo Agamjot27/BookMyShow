@@ -1,0 +1,445 @@
+/* ── Page shell ────────────────────────────────────────────────────────────── */
+.page {
+  min-height: 100vh;
+  background: #f5f5f7;
+  display: flex;
+  flex-direction: column;
+  font-family: Arial, Helvetica, sans-serif;
+  color: #222;
+}
+
+/* ── Top bar ───────────────────────────────────────────────────────────────── */
+.topBar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 24px;
+  background: #fff;
+  border-bottom: 1px solid #e4e4e7;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.backBtn {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: #f4f4f4;
+  color: #333;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.backBtn:hover { background: #e8e8e8; }
+
+.topBarInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.topBarTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: #111;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.topBarSub {
+  font-size: 12px;
+  color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topBarRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.accessibilityBtn {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #ddd;
+  border-radius: 50%;
+  background: #fff;
+  color: #555;
+  cursor: pointer;
+}
+.ticketCountBtn {
+  padding: 7px 16px;
+  border: 1.5px solid #f84464;
+  border-radius: 20px;
+  background: #fff;
+  color: #f84464;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* ── Time switcher ─────────────────────────────────────────────────────────── */
+.timeSwitcher {
+  display: flex;
+  gap: 10px;
+  padding: 12px 24px;
+  background: #fff;
+  border-bottom: 1px solid #e4e4e7;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.timeSwitcher::-webkit-scrollbar { display: none; }
+
+.timePill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 18px;
+  border-radius: 6px;
+  border: 1.5px solid #ddd;
+  background: #fff;
+  color: #444;
+  cursor: pointer;
+  min-width: 90px;
+  transition: border-color 0.15s;
+  flex-shrink: 0;
+}
+.timePill:hover { border-color: #2dc492; color: #2dc492; }
+.timePillActive {
+  border-color: #2dc492 !important;
+  background: #2dc492 !important;
+  color: #fff !important;
+}
+.timePillTime { font-size: 14px; font-weight: 700; }
+.timePillLabel { font-size: 10px; margin-top: 2px; }
+
+/* ── Seat area ─────────────────────────────────────────────────────────────── */
+.seatArea {
+  flex: 1;
+  overflow-x: auto;
+  padding: 24px 0 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+}
+
+/* ── Tier section ──────────────────────────────────────────────────────────── */
+.tierSection {
+  width: 100%;
+  max-width: 820px;
+  padding: 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tierHeader {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #555;
+  padding: 6px 0 10px;
+  border-bottom: 1px solid #ddd;
+  margin-bottom: 4px;
+}
+
+/* ── Row ───────────────────────────────────────────────────────────────────── */
+.seatRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;   /* center the whole row */
+  position: relative;
+  width: 100%;
+}
+.rowLabel {
+  position: absolute;
+  left: 0;                   /* pin label to the left edge of the tier section */
+  width: 18px;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 600;
+  color: #888;
+  flex-shrink: 0;
+}
+.seatGroup {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+  flex-wrap: nowrap;         /* single clean row, no wrapping */
+}
+
+/* ── Seat button ───────────────────────────────────────────────────────────── */
+.seat {
+  width: 30px;
+  height: 28px;
+  border-radius: 4px 4px 6px 6px;
+  border: 1.5px solid;
+  font-size: 9px;
+  font-weight: 600;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: transform 0.1s, background 0.1s;
+  flex-shrink: 0;
+}
+.seat:hover:not(:disabled) { transform: scale(1.15); }
+.seat:disabled { cursor: not-allowed; }
+
+/* Status colours */
+.seat_available  { border-color: #aaa; background: #fff; color: #555; }
+.seat_available:hover { border-color: #2dc492; background: #eafaf4; color: #2dc492; }
+.seat_sold       { border-color: #ddd; background: #f0f0f0; color: #ccc; }
+.seat_bestseller { border-color: #f5a623; background: #fff8ec; color: #c8811a; }
+.seat_selected   { border-color: #2dc492; background: #2dc492; color: #fff; }
+
+/* ── Screen ────────────────────────────────────────────────────────────────── */
+.screenWrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+.screenCurve {
+  width: 340px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid #b0c8e8;
+  border-bottom: none;
+  background: linear-gradient(to bottom, #dce8f8, transparent);
+}
+.screenLabel {
+  margin: 0;
+  font-size: 11px;
+  color: #999;
+  letter-spacing: 0.05em;
+}
+
+/* ── Legend ────────────────────────────────────────────────────────────────── */
+.legend {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: #555;
+}
+.legendSwatch {
+  width: 22px;
+  height: 20px;
+  border-radius: 4px 4px 5px 5px;
+  border: 1.5px solid;
+  display: block;
+}
+
+/* ── Bottom pay bar ────────────────────────────────────────────────────────── */
+.payBar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  background: #fff;
+  border-top: 1px solid #e4e4e7;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  box-shadow: 0 -4px 20px #0001;
+}
+.payBarInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.payBarSeats { font-size: 13px; color: #555; }
+.payBarTotal { font-size: 18px; font-weight: 700; color: #111; }
+.payBtn {
+  padding: 13px 32px;
+  border: 0;
+  border-radius: 8px;
+  background: #f84464;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.payBtn:hover { background: #d82e4e; }
+
+/* ── Modal / Bottom sheet ──────────────────────────────────────────────────── */
+
+/* Keyframes */
+@keyframes backdropFadeIn  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes backdropFadeOut { from { opacity: 1; } to { opacity: 0; } }
+@keyframes slideUp   { from { opacity: 0; transform: translateY(28px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes slideDown { from { opacity: 1; transform: translateY(0)    scale(1);    } to { opacity: 0; transform: translateY(20px) scale(0.97); } }
+
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(23, 23, 27, 0.55);
+  display: flex;
+  align-items: center;        /* vertically centered */
+  justify-content: center;
+  padding: 16px;              /* breathing room on small screens */
+}
+.backdropIn  { animation: backdropFadeIn  0.25s ease forwards; }
+.backdropOut { animation: backdropFadeOut 0.22s ease forwards; }
+
+.modal {
+  background: #fff;
+  border-radius: 20px;        /* all corners rounded — not a bottom sheet anymore */
+  padding: 16px 28px 32px;
+  width: 100%;
+  max-width: 480px;
+  max-height: calc(100dvh - 32px);  /* never taller than the viewport */
+  overflow-y: auto;           /* scroll internally if content is taller */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 0 24px 80px #0004;
+  will-change: transform;
+}
+.sheetIn  { animation: slideUp   0.32s cubic-bezier(0.32, 0.72, 0, 1) forwards; }
+.sheetOut { animation: slideDown 0.24s cubic-bezier(0.4, 0, 1, 1)    forwards; }
+
+/* Drag handle — hidden for centered dialog */
+.sheetHandle { display: none; }
+
+.modalTitle {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: #111;
+}
+.modalIllustration {
+  font-size: 56px;
+  line-height: 1;
+}
+.countRow {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.countBtn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1.5px solid #ddd;
+  background: #fff;
+  color: #333;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.countBtn:hover { border-color: #f84464; color: #f84464; }
+.countBtnActive {
+  border-color: #f84464 !important;
+  background: #f84464 !important;
+  color: #fff !important;
+}
+.modalDivider {
+  width: 100%;
+  border: 0;
+  border-top: 1px solid #eee;
+  margin: 0;
+}
+.tierPricing {
+  display: flex;
+  gap: 28px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.tierPriceCol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.tierName { font-size: 12px; font-weight: 600; color: #888; letter-spacing: 0.05em; }
+.tierPrice { font-size: 18px; font-weight: 700; color: #111; }
+.tierAvail { font-size: 11px; color: #2dc492; font-weight: 700; }
+.bestsellerNote {
+  margin: 0;
+  font-size: 12px;
+  color: #666;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+  text-align: center;
+}
+.bestsellerSwatch {
+  display: inline-block;
+  width: 18px;
+  height: 16px;
+  border-radius: 3px;
+  border: 1.5px solid #f5a623;
+  background: #fff8ec;
+  vertical-align: middle;
+}
+.selectSeatsBtn {
+  width: 100%;
+  height: 50px;
+  border: 0;
+  border-radius: 10px;
+  background: #f84464;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.selectSeatsBtn:hover { background: #d82e4e; }
+
+/* ── Responsive ────────────────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .seat { width: 26px; height: 24px; font-size: 8px; }
+  .seatGroup { gap: 4px; }
+  .topBar { padding: 12px 16px; }
+  .tierSection { padding: 0 12px; }
+}
+
+/* ── Cap exceeded toast ────────────────────────────────────────────────────── */
+@keyframes toastIn  { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes toastOut { 0% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; } }
+
+.capToast {
+  position: fixed;
+  top: 80px;           /* below sticky top bar */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  background: #1a1a2e;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 11px 22px;
+  border-radius: 24px;
+  box-shadow: 0 6px 24px #0003;
+  white-space: nowrap;
+  animation: toastIn 0.18s ease forwards, toastOut 0.8s ease forwards;
+  pointer-events: none;
+}
