@@ -11,7 +11,6 @@ import {
   Bank,
   Timer,
   Tag,
-  CheckCircle,
   DeviceMobile,
   PiggyBank,
 } from "@phosphor-icons/react";
@@ -489,7 +488,15 @@ export function CheckoutPage() {
   if (ticket) {
     return (
       <div className={styles.successPage}>
-        <CheckCircle size={72} weight="fill" className={styles.successIcon} />
+        {/* Animated tick — ring pulse + SVG path draw-in + bounce scale */}
+        <div className={styles.tickWrap}>
+          <div className={styles.tickRing} aria-hidden="true" />
+          <div className={styles.tickCircle}>
+            <svg className={styles.tickSvg} viewBox="0 0 48 48" aria-hidden="true">
+              <path className={styles.tickPath} d="M10 25 L20 35 L38 14" />
+            </svg>
+          </div>
+        </div>
         <h1 className={styles.successTitle}>Booking Confirmed!</h1>
         <p className={styles.successSub}>{movie}</p>
         <p className={styles.successMeta}>Booking reference: {ticket.booking_id}</p>

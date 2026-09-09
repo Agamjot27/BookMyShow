@@ -296,6 +296,26 @@
 .consentText { margin: 0; font-size: 12px; color: #777; line-height: 1.5; }
 
 /* ── Success page ──────────────────────────────────────────────────────────── */
+@keyframes successFadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes tickPop {
+  0%   { opacity: 0; transform: scale(0.3) rotate(-15deg); }
+  60%  { transform: scale(1.18) rotate(4deg); }
+  80%  { transform: scale(0.94) rotate(-2deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+@keyframes tickDraw {
+  from { stroke-dashoffset: 80; }
+  to   { stroke-dashoffset: 0; }
+}
+@keyframes ringPulse {
+  0%   { transform: scale(0.6); opacity: 0; }
+  50%  { opacity: 0.25; }
+  100% { transform: scale(1.7); opacity: 0; }
+}
+
 .successPage {
   min-height: 100vh;
   display: flex; flex-direction: column;
@@ -303,12 +323,62 @@
   gap: 12px; padding: 40px 24px;
   background: #f0f0f5; text-align: center;
   font-family: Arial, Helvetica, sans-serif;
+  animation: successFadeUp 0.5s ease both;
 }
-.successIcon { color: #2dc492; }
-.successTitle { margin: 0; font-size: 28px; font-weight: 800; color: #111; }
-.successSub { margin: 0; font-size: 17px; font-weight: 600; color: #333; }
-.successMeta { margin: 0; font-size: 13px; color: #666; }
-.successTotal { margin: 8px 0 0; font-size: 20px; font-weight: 700; color: #111; }
+
+/* Animated tick circle */
+.tickWrap {
+  position: relative;
+  width: 96px; height: 96px;
+  display: flex; align-items: center; justify-content: center;
+  animation: tickPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s both;
+}
+.tickRing {
+  position: absolute; inset: 0;
+  border-radius: 50%;
+  background: #2dc492;
+  animation: ringPulse 0.9s ease-out 0.4s both;
+}
+.tickCircle {
+  position: relative;
+  width: 96px; height: 96px;
+  border-radius: 50%;
+  background: #2dc492;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 8px 32px rgba(45, 196, 146, 0.38);
+  z-index: 1;
+}
+.tickSvg {
+  width: 48px; height: 48px;
+  overflow: visible;
+}
+.tickPath {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 80;
+  stroke-dashoffset: 80;
+  animation: tickDraw 0.45s cubic-bezier(0.65, 0, 0.35, 1) 0.5s forwards;
+}
+
+.successTitle {
+  margin: 0; font-size: 28px; font-weight: 800; color: #111;
+  animation: successFadeUp 0.4s ease 0.55s both;
+}
+.successSub {
+  margin: 0; font-size: 17px; font-weight: 600; color: #333;
+  animation: successFadeUp 0.4s ease 0.65s both;
+}
+.successMeta {
+  margin: 0; font-size: 13px; color: #666;
+  animation: successFadeUp 0.4s ease 0.72s both;
+}
+.successTotal {
+  margin: 8px 0 0; font-size: 20px; font-weight: 700; color: #111;
+  animation: successFadeUp 0.4s ease 0.78s both;
+}
 .successHomeBtn {
   margin-top: 16px;
   padding: 13px 36px;
@@ -316,5 +386,6 @@
   background: #e63946; color: #fff;
   font-size: 15px; font-weight: 700;
   cursor: pointer; transition: background 0.15s;
+  animation: successFadeUp 0.4s ease 0.88s both;
 }
 .successHomeBtn:hover { background: #c1121f; }
